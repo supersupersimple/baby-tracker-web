@@ -1,0 +1,10 @@
+{
+  "buildCommand": "prisma generate && npm run build",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "functions": {
+    "app/api/**/*.js": {
+      "maxDuration": 10
+    }
+  }
+}
