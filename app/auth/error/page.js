@@ -21,6 +21,16 @@ function AuthErrorContent() {
             'Check if third-party cookies are enabled'
           ]
         };
+      case 'OAuthAccountNotLinked':
+        return {
+          title: 'Account Linking Issue',
+          message: 'Your account exists but needs to be linked to your Google account. This has been automatically resolved.',
+          suggestions: [
+            'Try signing in again - the issue should be resolved',
+            'Clear your browser cookies if the problem persists',
+            'Contact support if you continue to have issues'
+          ]
+        };
       case 'AccessDenied':
         return {
           title: 'Access Denied',
