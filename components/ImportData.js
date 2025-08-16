@@ -12,8 +12,8 @@ export function ImportData({ onImportComplete, selectedBaby }) {
     const file = event.target.files[0];
     if (!file) return;
 
-    if (!file.name.endsWith('.json')) {
-      setMessage("Error: Please select a JSON file");
+    if (!file.name.endsWith('.abt') && !file.name.endsWith('.json')) {
+      setMessage("Error: Please select an .abt or .json file");
       return;
     }
 
@@ -26,16 +26,28 @@ export function ImportData({ onImportComplete, selectedBaby }) {
     setMessage("");
 
     try {
-      // Read the file content
-      const fileContent = await file.text();
-      const jsonData = JSON.parse(fileContent);
+      let response;
+      
+      if (file.name.endsWith('.abt')) {
+        // Handle .abt file upload using FormData
+        const formData = new FormData();
+        formData.append('file', file);
 
-      // Send to import API with baby ID
-      const response = await fetch(`/api/import?babyId=${selectedBaby.id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(jsonData),
-      });
+        response = await fetch(`/api/import?babyId=${selectedBaby.id}`, {
+          method: 'POST',
+          body: formData,
+        });
+      } else {
+        // Handle .json file upload (backward compatibility)
+        const fileContent = await file.text();
+        const jsonData = JSON.parse(fileContent);
+        
+        response = await fetch(`/api/import?babyId=${selectedBaby.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(jsonData),
+        });
+      }
 
       const result = await response.json();
 
@@ -75,14 +87,14 @@ export function ImportData({ onImportComplete, selectedBaby }) {
         <div className="space-y-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-sm text-blue-700">
-              📋 Import activities from a JSON file. The file should contain a &quot;records&quot; array with activity data.
+              📋 Import activities from an .abt file (recommended) or JSON file. The file should contain baby tracker data exported from this app.
             </p>
           </div>
           
           <div className="flex flex-col space-y-2">
             <input
               type="file"
-              accept=".json"
+              accept=".abt,.json"
               onChange={handleFileUpload}
               disabled={importing}
               className="block w-full text-sm text-gray-500

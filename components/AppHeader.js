@@ -234,8 +234,8 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
     const file = event.target.files[0];
     if (!file) return;
 
-    if (!file.name.endsWith('.json')) {
-      setMessage("Error: Please select a JSON file");
+    if (!file.name.endsWith('.abt') && !file.name.endsWith('.json')) {
+      setMessage("Error: Please select an .abt or .json file");
       setTimeout(() => setMessage(""), 3000);
       return;
     }
@@ -251,14 +251,28 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
     setShowMenu(false);
 
     try {
-      const fileContent = await file.text();
-      const jsonData = JSON.parse(fileContent);
+      let response;
+      
+      if (file.name.endsWith('.abt')) {
+        // Handle .abt file upload using FormData
+        const formData = new FormData();
+        formData.append('file', file);
 
-      const response = await fetch(`/api/import?babyId=${selectedBaby.id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(jsonData),
-      });
+        response = await fetch(`/api/import?babyId=${selectedBaby.id}`, {
+          method: 'POST',
+          body: formData,
+        });
+      } else {
+        // Handle .json file upload (backward compatibility)
+        const fileContent = await file.text();
+        const jsonData = JSON.parse(fileContent);
+
+        response = await fetch(`/api/import?babyId=${selectedBaby.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(jsonData),
+        });
+      }
 
       const result = await response.json();
 

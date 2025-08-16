@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authConfig } from '../../../lib/auth.js';
 import { prisma } from '../../../lib/prisma.js';
+import JSZip from 'jszip';
 
 export async function GET(request) {
   try {
@@ -122,16 +123,33 @@ export async function GET(request) {
       birthday: formatBirthday(baby?.birthday)
     };
 
-    // Generate filename with current date
+    // Create ZIP file containing the JSON data
+    const zip = new JSZip();
+    const jsonContent = JSON.stringify(exportData, null, 2);
+    
+    // Add JSON file to zip with a standard name
+    zip.file('data.json', jsonContent);
+    
+    // Generate zip buffer
+    const zipBuffer = await zip.generateAsync({
+      type: 'nodebuffer',
+      compression: 'DEFLATE',
+      compressionOptions: {
+        level: 6
+      }
+    });
+
+    // Generate filename with baby name and current date
     const now = new Date();
     const dateString = now.toISOString().split('T')[0]; // YYYY-MM-DD format
-    const filename = `baby-tracker-export-${dateString}.json`;
+    const safebabyName = (baby?.babyName || "baby").replace(/[^a-zA-Z0-9]/g, '_');
+    const filename = `${safebabyName}_${dateString}.abt`;
 
-    // Return the JSON data as a downloadable file
-    return new NextResponse(JSON.stringify(exportData, null, 2), {
+    // Return the zipped data as .abt file
+    return new NextResponse(zipBuffer, {
       status: 200,
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/octet-stream',
         'Content-Disposition': `attachment; filename="${filename}"`,
         'Cache-Control': 'no-cache'
       }

@@ -304,6 +304,7 @@ const formatDuration = (startTime, endTime) => {
 export default function RecentActivities({ refreshTrigger, selectedBaby }) {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
   const [finishingActivity, setFinishingActivity] = useState(null);
   const [editingActivity, setEditingActivity] = useState(null);
@@ -312,10 +313,17 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
   const [deletingActivity, setDeletingActivity] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [activityToDelete, setActivityToDelete] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
 
-  const fetchRecentActivities = async () => {
+  const fetchRecentActivities = async (reset = true) => {
     try {
-      setLoading(true);
+      if (reset) {
+        setLoading(true);
+        setCurrentPage(1);
+        setHasMore(true);
+      }
       setError(null);
       
       // OFFLINE-FIRST: Always load from localStorage first
@@ -324,14 +332,22 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
       const filteredActivities = selectedBaby ? 
         localActivities.filter(activity => activity.babyId === selectedBaby.id || activity.baby?.id === selectedBaby.id) : 
         localActivities;
-      setActivities(filteredActivities);
-      setLoading(false);
+      
+      if (reset) {
+        setActivities(filteredActivities);
+        setLoading(false);
+      }
       
       // Then sync with remote if online
       if (isOnline()) {
         try {
-          // Sync remote data to local storage
-          await syncRemoteToLocal(selectedBaby);
+          // Sync remote data to local storage (first page only for initial load)
+          const syncResult = await syncRemoteToLocal(selectedBaby, 1, 100);
+          
+          if (syncResult.success && syncResult.pagination) {
+            setTotalCount(syncResult.pagination.totalCount);
+            setHasMore(syncResult.pagination.hasMore);
+          }
           
           // Reload from localStorage after sync
           const updatedLocalActivities = getAllLocalActivities();
@@ -339,7 +355,10 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
           const filteredUpdatedActivities = selectedBaby ? 
             updatedLocalActivities.filter(activity => activity.babyId === selectedBaby.id || activity.baby?.id === selectedBaby.id) : 
             updatedLocalActivities;
-          setActivities(filteredUpdatedActivities);
+          
+          if (reset) {
+            setActivities(filteredUpdatedActivities);
+          }
         } catch (syncError) {
           console.log('Background sync failed:', syncError);
           // Don't show error since we have local data
@@ -349,13 +368,49 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
     } catch (error) {
       console.error('Error loading activities:', error);
       setError('Failed to load activities');
-      setLoading(false);
+      if (reset) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
     fetchRecentActivities();
   }, [refreshTrigger, selectedBaby]);
+
+  const loadMoreActivities = async () => {
+    if (!hasMore || loadingMore || !isOnline()) {
+      return;
+    }
+
+    try {
+      setLoadingMore(true);
+      const nextPage = currentPage + 1;
+      
+      // Sync next page of remote data to local storage
+      const syncResult = await syncRemoteToLocal(selectedBaby, nextPage, 100);
+      
+      if (syncResult.success) {
+        setCurrentPage(nextPage);
+        
+        if (syncResult.pagination) {
+          setHasMore(syncResult.pagination.hasMore);
+        }
+        
+        // Reload from localStorage after sync
+        const updatedLocalActivities = getAllLocalActivities();
+        const filteredUpdatedActivities = selectedBaby ? 
+          updatedLocalActivities.filter(activity => activity.babyId === selectedBaby.id || activity.baby?.id === selectedBaby.id) : 
+          updatedLocalActivities;
+        
+        setActivities(filteredUpdatedActivities);
+      }
+    } catch (error) {
+      console.error('Error loading more activities:', error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const handleFinishActivity = async (activityTempId) => {
     try {
@@ -720,6 +775,38 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
                 </div>
               );
             })}
+            
+            {/* Load More Button */}
+            {isOnline() && hasMore && (
+              <div className="flex justify-center pt-4 pb-2">
+                <Button
+                  onClick={loadMoreActivities}
+                  disabled={loadingMore}
+                  variant="outline"
+                  className="text-sm"
+                >
+                  {loadingMore ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <span className="mr-2">📄</span>
+                      Load More ({totalCount - activities.length} remaining)
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+            
+            {/* Offline indicator */}
+            {!isOnline() && hasMore && (
+              <div className="text-center py-4 text-sm text-gray-500">
+                <span className="mr-2">📱</span>
+                Go online to load more activities
+              </div>
+            )}
           </div>
         )}
       </div>

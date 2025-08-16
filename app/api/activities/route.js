@@ -43,6 +43,9 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const babyId = searchParams.get('babyId');
     const type = searchParams.get('type');
+    const page = parseInt(searchParams.get('page')) || 1;
+    const limit = parseInt(searchParams.get('limit')) || 100;
+    const offset = (page - 1) * limit;
     
     if (!babyId) {
       return NextResponse.json({
@@ -78,6 +81,11 @@ export async function GET(request) {
       ...(type && { type })
     };
 
+    // Get total count for pagination info
+    const totalCount = await prisma.activity.count({
+      where: whereClause
+    });
+
     const activities = await prisma.activity.findMany({
       where: whereClause,
       include: {
@@ -96,12 +104,24 @@ export async function GET(request) {
           }
         }
       },
-      orderBy: { fromDate: 'desc' }
+      orderBy: { fromDate: 'desc' },
+      skip: offset,
+      take: limit
     });
+
+    const totalPages = Math.ceil(totalCount / limit);
+    const hasMore = page < totalPages;
     
     return NextResponse.json({
       success: true,
       data: activities,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages,
+        hasMore
+      }
     });
   } catch (error) {
     console.error('Database error:', error);
