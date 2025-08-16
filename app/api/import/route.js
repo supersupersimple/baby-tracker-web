@@ -15,12 +15,15 @@ export async function POST(request) {
     }
 
     const data = await request.json();
-    const { babyId } = data; // Expect babyId in the request body
+    
+    // Get babyId from query parameters (URL) instead of request body
+    const { searchParams } = new URL(request.url);
+    const babyId = searchParams.get('babyId');
     
     if (!babyId) {
       return NextResponse.json({
         success: false,
-        error: 'Baby ID is required for import',
+        error: 'Baby ID is required as query parameter (?babyId=X)',
       }, { status: 400 });
     }
 
@@ -89,7 +92,7 @@ export async function POST(request) {
       const record = data.records[i];
       
       try {
-        // Prepare activity data with field mapping
+        // Prepare activity data with field mapping and normalization
         const activityData = {
           babyId: parseInt(babyId), // Use the specified baby ID
           recorder: user.id, // Use the authenticated user ID
@@ -97,11 +100,28 @@ export async function POST(request) {
           subtype: record.subtype?.toUpperCase() || 'BOTTLE',
           fromDate: convertDateFormat(record.fromDate),
           toDate: record.toDate ? convertDateFormat(record.toDate) : null,
-          unit: record.unit?.toUpperCase() || 'NONE',
-          amount: record.amount ? parseFloat(record.amount) : null,
-          category: record.category?.toUpperCase() || 'NONE',
+          unit: null,
+          amount: null,
+          category: null,
           details: record.details || ''
         };
+
+        // Normalize unit, amount, and category based on activity type (following our corrected specification)
+        if (activityData.type === 'FEEDING' && activityData.subtype === 'BOTTLE') {
+          // Only bottle feeding should have unit/amount/category
+          activityData.unit = record.unit?.toUpperCase() === 'MILLILITRES' || record.unit?.toUpperCase() === 'OUNCES' ? record.unit.toUpperCase() : 'MILLILITRES';
+          activityData.amount = record.amount ? parseFloat(record.amount) : null;
+          activityData.category = record.category?.toUpperCase() === 'FORMULA' || record.category?.toUpperCase() === 'BREAST_MILK' ? record.category.toUpperCase() : 'FORMULA';
+        } else if (activityData.type === 'GROWTH') {
+          // Growth activities have measurements
+          activityData.unit = activityData.subtype === 'GROWTH_WEIGHT' ? 'KILOGRAMS' : 'CENTIMETERS';
+          activityData.amount = record.amount ? parseFloat(record.amount) : null;
+        } else if (activityData.type === 'HEALTH' && activityData.subtype === 'HEALTH_TEMPERATURE') {
+          // Only temperature measurements have unit/amount
+          activityData.unit = 'CELSIUS';
+          activityData.amount = record.amount ? parseFloat(record.amount) : null;
+        }
+        // All other activities (diapering, medication, sleeping, leisure, etc.) keep null values
 
         // Validate required fields
         if (!activityData.fromDate) {

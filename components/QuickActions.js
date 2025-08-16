@@ -144,7 +144,7 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
         toDate: null,
         unit: null,
         amount: null,
-        category: "NONE",
+        category: null,
         details: ""
       };
 
@@ -232,35 +232,44 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
         ? new Date().toISOString() 
         : formData.time;
 
-      // Prepare activity data
+      // Prepare activity data based on activity type
       let activityData = {
         babyId: selectedBaby.id,
         type: selectedAction.id === "growth" ? "GROWTH" : (selectedAction.id === "health" ? "HEALTH" : (selectedAction.id === "leisure" ? "LEISURE" : selectedAction.id.toUpperCase())),
         subtype: formData.subtype || getDefaultSubtype(selectedAction.id),
         fromDate: fromDate,
         toDate: formData.endTime || null,
-        unit: formData.unit === "ML" ? "MILLILITRES" : 
-             (formData.unit === "OZ" ? "OUNCES" : 
-             (selectedAction.id === "growth" ? 
-               (formData.subtype === "GROWTH_WEIGHT" ? "KILOGRAMS" : "CENTIMETERS") :
-             (selectedAction.id === "health" && formData.subtype === "HEALTH_TEMPERATURE" ? "CELSIUS" : 
-               (formData.unit || "NONE")))),
-        amount: formData.amount ? parseFloat(formData.amount) : null,
-        category: formData.category || "NONE",
+        unit: null,
+        amount: null,
+        category: null,
         details: ""
       };
 
-      // Handle details based on activity type
-      if (selectedAction.id === "feeding" && formData.subtype === "BOTTLE" && formData.category) {
-        // For bottle feeding, include category in details
-        const categoryText = formData.category === "FORMULA" ? "Formula" : "Breast Milk";
-        activityData.details = formData.details 
-          ? `${categoryText} - ${formData.details}`
-          : categoryText;
+      // Set unit, amount, and category based on activity type
+      if (selectedAction.id === "feeding" && formData.subtype === "BOTTLE") {
+        // Only bottle feeding should have unit/amount/category
+        activityData.unit = formData.unit === "ML" ? "MILLILITRES" : (formData.unit === "OZ" ? "OUNCES" : "MILLILITRES");
+        activityData.amount = formData.amount ? parseFloat(formData.amount) : null;
+        activityData.category = formData.category || "FORMULA";
+      } else if (selectedAction.id === "growth") {
+        // Growth activities have measurements
+        activityData.unit = formData.subtype === "GROWTH_WEIGHT" ? "KILOGRAMS" : "CENTIMETERS";
+        activityData.amount = formData.amount ? parseFloat(formData.amount) : null;
+        activityData.category = "NONE";
+      } else if (selectedAction.id === "health" && formData.subtype === "HEALTH_TEMPERATURE") {
+        // Only temperature measurements have unit/amount
+        activityData.unit = "CELSIUS";
+        activityData.amount = formData.amount ? parseFloat(formData.amount) : null;
+        activityData.category = "NONE";
       } else {
-        // For other activities, just use the details as entered
-        activityData.details = formData.details || "";
+        // All other activities (diapering, medication, sleeping, leisure, etc.) should not have unit/amount/category
+        activityData.unit = null;
+        activityData.amount = null;
+        activityData.category = null;
       }
+
+      // Handle details - just use the details as entered (category is handled separately)
+      activityData.details = formData.details || "";
 
       // Try API first (server-first for authenticated users)
       if (isOnline()) {
@@ -515,7 +524,7 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
                     ? "What did baby eat?" 
                     : "Add any notes..."
                 }
-                required={formData.subtype === "MEAL"}
+required={false}
               />
             </div>
           </>

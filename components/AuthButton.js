@@ -45,9 +45,9 @@ export function AuthButton({ showOnlyWhenAuthenticated = false }) {
     return null;
   }
 
-  // Check if Google OAuth is available
-  const hasGoogleOAuth = process.env.NODE_ENV === 'production' || 
-    (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+  // Always show Google login button in this environment
+  // (Google OAuth credentials are configured server-side)
+  const hasGoogleOAuth = true;
 
   if (hasGoogleOAuth) {
     return (

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
-export function ImportDropdown() {
+export function ImportDropdown({ selectedBaby }) {
   const [importing, setImporting] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -17,6 +17,12 @@ export function ImportDropdown() {
       return;
     }
 
+    if (!selectedBaby) {
+      setMessage("❌ Please select a baby first");
+      setTimeout(() => setMessage(""), 3000);
+      return;
+    }
+
     setImporting(true);
     setMessage("");
 
@@ -25,8 +31,8 @@ export function ImportDropdown() {
       const fileContent = await file.text();
       const jsonData = JSON.parse(fileContent);
 
-      // Send to import API
-      const response = await fetch('/api/import', {
+      // Send to import API with baby ID
+      const response = await fetch(`/api/import?babyId=${selectedBaby.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(jsonData),

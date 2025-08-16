@@ -240,6 +240,12 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
       return;
     }
 
+    if (!selectedBaby) {
+      setMessage("❌ Please select a baby first");
+      setTimeout(() => setMessage(""), 3000);
+      return;
+    }
+
     setImporting(true);
     setMessage("");
     setShowMenu(false);
@@ -248,7 +254,7 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
       const fileContent = await file.text();
       const jsonData = JSON.parse(fileContent);
 
-      const response = await fetch('/api/import', {
+      const response = await fetch(`/api/import?babyId=${selectedBaby.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(jsonData),

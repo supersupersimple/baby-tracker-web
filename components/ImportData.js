@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-export function ImportData({ onImportComplete }) {
+export function ImportData({ onImportComplete, selectedBaby }) {
   const [importing, setImporting] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -17,6 +17,11 @@ export function ImportData({ onImportComplete }) {
       return;
     }
 
+    if (!selectedBaby) {
+      setMessage("❌ Please select a baby first");
+      return;
+    }
+
     setImporting(true);
     setMessage("");
 
@@ -25,8 +30,8 @@ export function ImportData({ onImportComplete }) {
       const fileContent = await file.text();
       const jsonData = JSON.parse(fileContent);
 
-      // Send to import API
-      const response = await fetch('/api/import', {
+      // Send to import API with baby ID
+      const response = await fetch(`/api/import?babyId=${selectedBaby.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(jsonData),
