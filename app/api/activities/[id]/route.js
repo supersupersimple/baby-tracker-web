@@ -39,7 +39,8 @@ export async function PATCH(request, { params }) {
       }, { status: 401 });
     }
 
-    const activityId = parseInt(params.id);
+    const { id } = await params;
+    const activityId = parseInt(id);
     const body = await request.json();
     
     if (!activityId) {
@@ -156,7 +157,8 @@ export async function DELETE(request, { params }) {
       }, { status: 401 });
     }
 
-    const activityId = parseInt(params.id);
+    const { id } = await params;
+    const activityId = parseInt(id);
     
     if (!activityId) {
       return NextResponse.json({ 

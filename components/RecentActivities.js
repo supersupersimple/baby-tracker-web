@@ -501,7 +501,13 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
         ? editFormData.toDateTime.toISOString()
         : null;
 
-      const response = await fetch(`/api/activities/${editingActivity.id}`, {
+      // Use the correct ID - prefer serverId for synced activities, fallback to id
+      const activityId = editingActivity.serverId || editingActivity.id;
+      if (!activityId) {
+        throw new Error('No valid activity ID found for editing');
+      }
+
+      const response = await fetch(`/api/activities/${activityId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1017,12 +1023,12 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
               <Button
                 type="button"
                 variant="destructive"
-                onClick={() => handleDeleteActivity(editingActivity.id)}
-                disabled={deletingActivity === editingActivity.id}
+                onClick={() => handleDeleteActivity(editingActivity.serverId || editingActivity.id)}
+                disabled={deletingActivity === (editingActivity.serverId || editingActivity.id)}
                 className="px-3"
                 title="Delete activity"
               >
-                {deletingActivity === editingActivity.id ? "⏳" : "🗑️"}
+                {deletingActivity === (editingActivity.serverId || editingActivity.id) ? "⏳" : "🗑️"}
               </Button>
             </div>
           </div>
