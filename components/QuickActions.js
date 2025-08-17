@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { storeActivityLocally, syncLocalActivities, isOnline } from "@/lib/offline-storage";
+import { storeActivityLocally, syncLocalActivities, isOnline, getAllLocalActivities } from "@/lib/offline-storage";
 import { useSession } from "next-auth/react";
 
 // Quick action data
@@ -89,29 +89,53 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
     let lastAmount = "";
     let lastUnit = "ML";
     
+    // 🔥 NEW: Get last feeding amount from local storage first, then API
     if (action.id === "feeding") {
       try {
-        const response = await fetch(`/api/activities?babyId=${selectedBaby.id}&type=FEEDING`);
-        const result = await response.json();
-        if (result.success && result.data.length > 0) {
-          // Get the most recent feeding activity with amount (any type)
-          const feedingsWithAmount = result.data
-            .filter(activity => 
-              activity.amount && 
-              activity.amount > 0
-            )
-            .sort((a, b) => new Date(b.fromDate) - new Date(a.fromDate));
-          
-          if (feedingsWithAmount.length > 0) {
-            const lastFeeding = feedingsWithAmount[0];
-            lastAmount = lastFeeding.amount.toString();
-            // Convert database unit format to form format
-            if (lastFeeding.unit === "MILLILITRES") {
-              lastUnit = "ML";
-            } else if (lastFeeding.unit === "OUNCES") {
-              lastUnit = "OZ";
-            } else {
-              lastUnit = "ML"; // Default fallback
+        // First try to get from local storage (faster)
+        const localActivities = getAllLocalActivities();
+        const localFeedings = localActivities
+          .filter(activity => 
+            activity.babyId === selectedBaby.id &&
+            activity.type === 'FEEDING' &&
+            activity.amount && 
+            activity.amount > 0
+          )
+          .sort((a, b) => new Date(b.fromDate) - new Date(a.fromDate));
+        
+        if (localFeedings.length > 0) {
+          const lastFeeding = localFeedings[0];
+          lastAmount = lastFeeding.amount.toString();
+          // Convert database unit format to form format
+          if (lastFeeding.unit === "MILLILITRES") {
+            lastUnit = "ML";
+          } else if (lastFeeding.unit === "OUNCES") {
+            lastUnit = "OZ";
+          } else {
+            lastUnit = "ML"; // Default fallback
+          }
+        } else if (isOnline()) {
+          // Fallback to API if no local data and online
+          const response = await fetch(`/api/activities?babyId=${selectedBaby.id}&type=FEEDING`);
+          const result = await response.json();
+          if (result.success && result.data.length > 0) {
+            const feedingsWithAmount = result.data
+              .filter(activity => 
+                activity.amount && 
+                activity.amount > 0
+              )
+              .sort((a, b) => new Date(b.fromDate) - new Date(a.fromDate));
+            
+            if (feedingsWithAmount.length > 0) {
+              const lastFeeding = feedingsWithAmount[0];
+              lastAmount = lastFeeding.amount.toString();
+              if (lastFeeding.unit === "MILLILITRES") {
+                lastUnit = "ML";
+              } else if (lastFeeding.unit === "OUNCES") {
+                lastUnit = "OZ";
+              } else {
+                lastUnit = "ML";
+              }
             }
           }
         }
@@ -132,6 +156,7 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
     setIsDialogOpen(true);
   };
 
+  // 🔥 NEW: Local-first sleep activity handler
   const handleDirectSleepActivity = async () => {
     setSaving(true);
 
@@ -148,56 +173,25 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
         details: ""
       };
 
-      // Try API first (server-first for authenticated users)
+      // 🚀 LOCAL-FIRST: Store immediately to local storage
+      const localActivity = storeActivityLocally(activityData);
+      
+      // Immediate UI feedback - user sees instant response
+      setFloatingMessage("✅ Sleep activity started!");
+      setTimeout(() => setFloatingMessage(""), 2000);
+      if (onActivityAdded) onActivityAdded();
+      
+      // 🔄 BACKGROUND SYNC: Schedule background synchronization
       if (isOnline()) {
+        // Import sync service dynamically to avoid circular dependencies
         try {
-          const response = await fetch('/api/activities', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(activityData),
-          });
-
-          const result = await response.json();
-          if (result.success) {
-            setFloatingMessage("✅ Sleep activity started!");
-            setTimeout(() => setFloatingMessage(""), 2000);
-            if (onActivityAdded) onActivityAdded();
-          } else {
-            // Check if it's a permission error
-            if (response.status === 403) {
-              setFloatingMessage(`❌ ${result.error} - Saved offline instead`);
-              setTimeout(() => setFloatingMessage(""), 3000);
-              // Still save offline for user convenience
-              const localActivity = storeActivityLocally(activityData);
-              if (onActivityAdded) onActivityAdded();
-              return;
-            }
-            throw new Error(result.error);
-          }
-        } catch (apiError) {
-          // Only fall back to offline for network errors, not permission errors
-          if (apiError.message && apiError.message.includes('permissions')) {
-            setFloatingMessage(`❌ ${apiError.message} - Saved offline instead`);
-            setTimeout(() => setFloatingMessage(""), 3000);
-            // Still save offline for user convenience
-            const localActivity = storeActivityLocally(activityData);
-            if (onActivityAdded) onActivityAdded();
-            return;
-          }
-          
-          console.error('Network error, falling back to offline:', apiError);
-          // Fall back to offline storage for network issues
-          const localActivity = storeActivityLocally(activityData);
-          setFloatingMessage("📵 Sleep activity saved offline (network error)!");
-          setTimeout(() => setFloatingMessage(""), 2000);
-          if (onActivityAdded) onActivityAdded();
+          const { getSyncService } = await import('@/lib/sync-service');
+          const syncService = getSyncService();
+          syncService.scheduleSync(localActivity.id);
+        } catch (syncError) {
+          console.warn('Background sync scheduling failed:', syncError);
+          // Activity is still saved locally, sync will happen later
         }
-      } else {
-        // Offline fallback
-        const localActivity = storeActivityLocally(activityData);
-        setFloatingMessage("📵 Sleep activity saved offline!");
-        setTimeout(() => setFloatingMessage(""), 2000);
-        if (onActivityAdded) onActivityAdded();
       }
       
     } catch (error) {
@@ -271,58 +265,31 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
       // Handle details - just use the details as entered (category is handled separately)
       activityData.details = formData.details || "";
 
-      // Try API first (server-first for authenticated users)
+      // 🚀 LOCAL-FIRST APPROACH: Store immediately to local storage
+      const localActivity = storeActivityLocally(activityData);
+      
+      // Immediate UI feedback - user sees instant response
+      setFloatingMessage("✅ Activity saved!");
+      setTimeout(() => setFloatingMessage(""), 2000);
+      setIsDialogOpen(false);
+      if (onActivityAdded) onActivityAdded();
+      
+      // 🔄 BACKGROUND SYNC: Schedule background synchronization
       if (isOnline()) {
         try {
-          const response = await fetch('/api/activities', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(activityData),
-          });
-
-          const result = await response.json();
-          if (result.success) {
-            setFloatingMessage("✅ Activity saved!");
-            setTimeout(() => setFloatingMessage(""), 2000);
-            setIsDialogOpen(false);
-            if (onActivityAdded) onActivityAdded();
-          } else {
-            // Check if it's a permission error
-            if (response.status === 403) {
-              setFloatingMessage(`❌ ${result.error} - Saved offline instead`);
-              setTimeout(() => setFloatingMessage(""), 3000);
-              // Still save offline for user convenience
-              const localActivity = storeActivityLocally(activityData);
-              setIsDialogOpen(false);
-              if (onActivityAdded) onActivityAdded();
-              return;
-            }
-            throw new Error(result.error);
-          }
-        } catch (apiError) {
-          // Only fall back to offline for network errors, not permission errors
-          if (apiError.message && apiError.message.includes('permissions')) {
-            setFloatingMessage(`❌ ${apiError.message}`);
-            setTimeout(() => setFloatingMessage(""), 3000);
-            setIsDialogOpen(false);
-            return;
-          }
-          
-          console.error('Network error, falling back to offline:', apiError);
-          // Fall back to offline storage for network issues
-          const localActivity = storeActivityLocally(activityData);
-          setFloatingMessage("📵 Activity saved offline (network error)!");
-          setTimeout(() => setFloatingMessage(""), 2000);
-          setIsDialogOpen(false);
-          if (onActivityAdded) onActivityAdded();
+          const { getSyncService } = await import('@/lib/sync-service');
+          const syncService = getSyncService();
+          syncService.scheduleSync(localActivity.id);
+        } catch (syncError) {
+          console.warn('Background sync scheduling failed:', syncError);
+          // Activity is still saved locally, will sync later when connection is available
         }
       } else {
-        // Offline fallback
-        const localActivity = storeActivityLocally(activityData);
-        setFloatingMessage("📵 Activity saved offline!");
-        setTimeout(() => setFloatingMessage(""), 2000);
-        setIsDialogOpen(false);
-        if (onActivityAdded) onActivityAdded();
+        // Show offline indicator
+        setTimeout(() => {
+          setFloatingMessage("📵 Saved offline - will sync when online");
+          setTimeout(() => setFloatingMessage(""), 2000);
+        }, 2100);
       }
       
     } catch (error) {

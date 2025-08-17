@@ -11,6 +11,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { manualSyncActivities, isOnline } from "@/lib/offline-storage";
+import { CompactSyncStatus } from "@/components/SyncStatusIndicator";
+import { BatchSyncButton } from "@/components/BatchSyncButton";
+import { initSyncService } from "@/lib/sync-service";
 
 export function AppHeader({ selectedBaby, onBabyChange }) {
   const { data: session } = useSession();
@@ -19,6 +22,7 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+  const [showBatchSyncDialog, setShowBatchSyncDialog] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -55,7 +59,11 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
     shareRole: "EDITOR"
   });
 
+  // 🔥 NEW: Initialize sync service on component mount
   useEffect(() => {
+    // Initialize sync service for background synchronization
+    initSyncService();
+    
     if (session) {
       fetchUserBabies();
     }
@@ -456,7 +464,10 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
             </div>
 
             {/* Right Menu */}
-            <div className="flex items-center">
+            <div className="flex items-center space-x-3">
+              {/* 🔥 NEW: Compact sync status in header */}
+              <CompactSyncStatus />
+              
               <div className="relative">
                 <Button
                   variant="ghost"
@@ -565,6 +576,17 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
 
                         <div className="border-t border-gray-100 my-1"></div>
 
+                        <button
+                          onClick={() => {
+                            setShowBatchSyncDialog(true);
+                            setShowMenu(false);
+                          }}
+                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <span className="mr-2">🔄</span>
+                          Sync Activities
+                        </button>
+                        
                         <button
                           onClick={openSettingsDialog}
                           className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -945,6 +967,40 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
                 type="button"
                 variant="outline"
                 onClick={() => setShowSettingsDialog(false)}
+                className="flex-1"
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 🔥 NEW: Batch Sync Dialog */}
+      <Dialog open={showBatchSyncDialog} onOpenChange={setShowBatchSyncDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Sync Activities</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="text-sm text-gray-600">
+              Synchronize your local activities with the server. This will upload any pending activities and download any new activities from other users.
+            </div>
+            
+            <BatchSyncButton 
+              className="w-full"
+              onSyncComplete={() => {
+                // Optionally close dialog after successful sync
+                // setShowBatchSyncDialog(false);
+              }}
+            />
+            
+            <div className="flex gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowBatchSyncDialog(false)}
                 className="flex-1"
               >
                 Close

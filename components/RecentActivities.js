@@ -7,7 +7,9 @@ import { Label } from "@/components/ui/label";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { useState, useEffect } from "react";
 import { format, formatDistanceToNow } from "date-fns";
-import { getAllLocalActivities, isOnline, syncRemoteToLocal, updateLocalActivity, removeLocalActivity, syncLocalActivities } from "@/lib/offline-storage";
+import { getAllLocalActivities, isOnline, syncRemoteToLocal, updateLocalActivity, removeLocalActivity, syncLocalActivities, getLocalActivity } from "@/lib/offline-storage";
+import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
+import { getSyncService } from "@/lib/sync-service";
 
 // Activity type icons and colors
 const getActivityDisplay = (type, subtype) => {
@@ -103,6 +105,52 @@ const getActivityDisplay = (type, subtype) => {
   };
 };
 
+// 🔥 NEW: Get sync status icon for activity
+const getSyncStatusIcon = (activity) => {
+  const status = activity.status || (activity.synced ? 'synced' : 'local');
+  
+  switch (status) {
+    case 'local':
+      return (
+        <span 
+          className="text-xs text-orange-600" 
+          title="Pending sync"
+        >
+          📝
+        </span>
+      );
+    case 'syncing':
+      return (
+        <span 
+          className="text-xs text-blue-600 animate-pulse" 
+          title="Syncing..."
+        >
+          🔄
+        </span>
+      );
+    case 'sync_failed':
+      return (
+        <span 
+          className="text-xs text-red-600" 
+          title="Sync failed - will retry"
+        >
+          ⚠️
+        </span>
+      );
+    case 'synced':
+      return (
+        <span 
+          className="text-xs text-green-600" 
+          title="Synced"
+        >
+          ✅
+        </span>
+      );
+    default:
+      return null;
+  }
+};
+
 const getFeedingIcon = (subtype) => {
   const normalizedSubtype = subtype?.toUpperCase();
   switch (normalizedSubtype) {
@@ -135,7 +183,7 @@ const getDiaperIcon = (subtype) => {
     case "PEEPOO": return "🌊";
     // Legacy support
     case "both".toUpperCase(): return "🌊";
-    default: return "👶";
+    default: return "🧻"; // Toilet paper - universally recognized for bathroom/diaper changes
   }
 };
 
@@ -316,6 +364,7 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
+  const [syncStatusVisible, setSyncStatusVisible] = useState(false);
 
   const fetchRecentActivities = async (reset = true) => {
     try {
@@ -326,7 +375,7 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
       }
       setError(null);
       
-      // OFFLINE-FIRST: Always load from localStorage first
+      // 🚀 LOCAL-FIRST: Always load from localStorage first with sync status
       const localActivities = getAllLocalActivities();
       // Filter activities for selected baby
       const filteredActivities = selectedBaby ? 
@@ -336,6 +385,8 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
       if (reset) {
         setActivities(filteredActivities);
         setLoading(false);
+        // Show sync status if there are local activities
+        setSyncStatusVisible(filteredActivities.length > 0);
       }
       
       // Then sync with remote if online
@@ -501,50 +552,63 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
         ? editFormData.toDateTime.toISOString()
         : null;
 
-      // Use the correct ID - prefer serverId for synced activities, fallback to id
-      const activityId = editingActivity.serverId || editingActivity.id;
-      if (!activityId) {
-        throw new Error('No valid activity ID found for editing');
-      }
+      const updateData = {
+        fromDate: fromDateTime,
+        toDate: toDateTime,
+        amount: editFormData.amount ? parseFloat(editFormData.amount) : null,
+        details: finalDetails,
+        unit: editFormData.unit,
+        subtype: editFormData.subtype,
+        category: editFormData.category
+      };
 
-      const response = await fetch(`/api/activities/${activityId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fromDate: fromDateTime,
-          toDate: toDateTime,
-          amount: editFormData.amount ? parseFloat(editFormData.amount) : null,
-          details: finalDetails,
-          unit: editFormData.unit,
-          subtype: editFormData.subtype,
-          category: editFormData.category
-        }),
-      });
-
-      const result = await response.json();
+      // OFFLINE-FIRST: Always update local storage first
+      const updatedActivity = updateLocalActivity(editingActivity.tempId || editingActivity.id, updateData);
       
-      if (result.success) {
-        // OFFLINE-FIRST: Update local storage immediately
-        const updatedActivity = updateLocalActivity(editingActivity.tempId || editingActivity.id, {
-          fromDate: fromDateTime,
-          toDate: toDateTime,
-          amount: editFormData.amount ? parseFloat(editFormData.amount) : null,
-          details: finalDetails,
-          unit: editFormData.unit,
-          subtype: editFormData.subtype,
-          category: editFormData.category
-        });
-        
-        if (updatedActivity) {
-          // Refresh the activities list immediately from local storage
-          const localActivities = getAllLocalActivities();
-          setActivities(localActivities);
-        }
+      if (updatedActivity) {
+        // Refresh the activities list immediately from local storage
+        const localActivities = getAllLocalActivities();
+        const filteredActivities = selectedBaby ? 
+          localActivities.filter(activity => activity.babyId === selectedBaby.id || activity.baby?.id === selectedBaby.id) : 
+          localActivities;
+        setActivities(filteredActivities);
         
         setIsEditDialogOpen(false);
         setEditingActivity(null);
+
+        // Then try to sync to server if online
+        if (isOnline()) {
+          try {
+            // Use the correct ID - prefer serverId for synced activities, fallback to id
+            const activityId = editingActivity.serverId || editingActivity.id;
+            if (!activityId) {
+              console.warn('No valid activity ID found for server sync');
+              return;
+            }
+
+            const response = await fetch(`/api/activities/${activityId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(updateData),
+            });
+
+            const result = await response.json();
+            
+            if (!result.success) {
+              console.warn('Server sync failed for activity update:', result.error);
+              // Don't show error since local update was successful
+              // The sync service will retry this later
+            }
+          } catch (serverError) {
+            console.warn('Server sync failed for activity update:', serverError);
+            // Don't show error since local update was successful
+            // The sync service will retry this later
+          }
+        } else {
+          console.log('Offline - activity updated locally, will sync when online');
+        }
       } else {
-        setError(result.error || 'Failed to update activity');
+        setError('Failed to update activity locally');
       }
     } catch (error) {
       console.error('Error updating activity:', error);
@@ -672,10 +736,16 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
     <>
     <div className="w-full h-full flex flex-col overflow-hidden max-w-full">
       <div className="pb-0 pt-2 px-2">
-        <h2 className="text-lg sm:text-xl flex items-center font-semibold">
-          <span className="mr-2">📋</span>
-          Recent Activities
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg sm:text-xl flex items-center font-semibold">
+            <span className="mr-2">📋</span>
+            Recent Activities
+          </h2>
+          {/* 🔥 NEW: Sync status indicator */}
+          {syncStatusVisible && (
+            <SyncStatusIndicator className="ml-2" />
+          )}
+        </div>
       </div>
       <div className="pt-2 px-2 pb-2 flex-1 min-h-0">
         {activities.length === 0 ? (
@@ -704,7 +774,7 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
                 <div key={activity.id} className="flex items-start space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-lg hover:bg-gray-50 border border-gray-100 w-full max-w-full activity-item">
                   {/* Activity Icon */}
                   <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0 activity-icon ${display.bgColor}`}>
-                    <span className="text-lg sm:text-xl">{display.icon}</span>
+                    <span className="text-xl sm:text-2xl">{display.icon}</span>
                   </div>
                   
                   {/* Activity Content */}
@@ -715,6 +785,8 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
                         <h4 className={`font-medium text-base ${display.color} activity-text`}>
                           {display.label}{activity.subtype && `(${getSubtypeLabel(activity.type, activity.subtype)})`}
                         </h4>
+                        {/* 🔥 NEW: Sync status indicator */}
+                        {getSyncStatusIcon(activity)}
                         <span className="text-xs text-gray-400">
                           {timeAgo}
                         </span>
@@ -734,8 +806,6 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
                     {/* Details Row */}
                     <div className="text-sm text-gray-600">
                       <div className="flex items-center flex-wrap gap-1 mb-1">
-                        <span className="font-medium text-gray-900">{activity.baby?.babyName || 'Baby'}</span>
-                        <span className="text-gray-400">•</span>
                         <span>{format(startTime, 'h:mm a')}</span>
                         {duration && (
                           <>

@@ -40,10 +40,9 @@ export async function PATCH(request, { params }) {
     }
 
     const { id } = await params;
-    const activityId = parseInt(id);
     const body = await request.json();
     
-    if (!activityId) {
+    if (!id) {
       return NextResponse.json({ 
         success: false, 
         error: 'Activity ID is required' 
@@ -62,25 +61,99 @@ export async function PATCH(request, { params }) {
       }, { status: 404 });
     }
 
-    // Check if activity exists and get baby info
-    const existingActivity = await prisma.activity.findUnique({
-      where: { id: activityId },
-      include: {
-        baby: {
-          select: {
-            id: true,
-            babyName: true,
-            ownerId: true
+    // Try parsing as integer first (server ID)
+    const activityId = parseInt(id);
+    let existingActivity = null;
+
+    if (!isNaN(activityId)) {
+      // Check if activity exists with server ID
+      existingActivity = await prisma.activity.findUnique({
+        where: { id: activityId },
+        include: {
+          baby: {
+            select: {
+              id: true,
+              babyName: true,
+              ownerId: true
+            }
           }
         }
-      }
-    });
+      });
+    }
 
+    // If not found by server ID, this might be a local ULID that needs to be synced first
     if (!existingActivity) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Activity not found' 
-      }, { status: 404 });
+      console.log(`Activity ${id} not found on server - this appears to be a local-only activity that needs syncing`);
+      
+      // For local activities, we need to create them on the server first
+      // Extract the baby ID from the request body or use a default
+      const babyId = body.babyId || (await prisma.baby.findFirst({
+        where: {
+          OR: [
+            { ownerId: user.id },
+            { babyAccess: { some: { userId: user.id } } }
+          ]
+        },
+        select: { id: true }
+      }))?.id;
+
+      if (!babyId) {
+        return NextResponse.json({
+          success: false,
+          error: 'No accessible baby found for this user',
+        }, { status: 400 });
+      }
+
+      // Check permission for the baby
+      const permission = await getUserBabyPermission(user.id, babyId);
+      if (!permission || permission === 'VIEWER') {
+        return NextResponse.json({
+          success: false,
+          error: 'Insufficient permissions. Need EDITOR or ADMIN access to create activities.',
+        }, { status: 403 });
+      }
+
+      // Create the activity on server first with the update data
+      const createData = {
+        babyId: parseInt(babyId),
+        recorder: user.id,
+        type: body.type || 'FEEDING',
+        subtype: body.subtype || 'MEAL',
+        fromDate: body.fromDate ? new Date(body.fromDate) : new Date(),
+        toDate: body.toDate || body.endTime ? new Date(body.toDate || body.endTime) : null,
+        amount: body.amount ? parseFloat(body.amount) : null,
+        details: body.details || null,
+        unit: body.unit?.toUpperCase() || null,
+        category: body.category?.toUpperCase() || null,
+      };
+
+      const newActivity = await prisma.activity.create({
+        data: createData,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          },
+          baby: {
+            select: {
+              id: true,
+              babyName: true,
+              gender: true
+            }
+          }
+        }
+      });
+
+      console.log(`✅ Created new activity ${newActivity.id} on server for local ULID ${id}`);
+
+      return NextResponse.json({
+        success: true,
+        data: newActivity,
+        message: 'Local activity synced and updated on server'
+      });
     }
 
     // Check permission - must be EDITOR or ADMIN to edit activities
