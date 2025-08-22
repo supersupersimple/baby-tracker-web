@@ -627,6 +627,11 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
     try {
       setDeletingActivity(activityId);
       console.log('🗑️ Deleting activity:', activityId);
+      console.log('🗑️ Current editing activity:', editingActivity ? {
+        id: editingActivity.id,
+        tempId: editingActivity.tempId,
+        serverId: editingActivity.serverId
+      } : 'none');
       
       // OFFLINE-FIRST: Remove from local storage first
       const activity = activities.find(a => a.id === activityId || a.tempId === activityId);
@@ -635,26 +640,49 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
         
         // Refresh from local storage immediately
         const localActivities = getAllLocalActivities();
-        setActivities(localActivities);
+        const filteredActivities = selectedBaby ? 
+          localActivities.filter(activity => activity.babyId === selectedBaby.id || activity.baby?.id === selectedBaby.id) : 
+          localActivities;
+        setActivities(filteredActivities);
       }
       
-      // Then try to delete from remote
-      const response = await fetch(`/api/activities/${activityId}`, {
-        method: 'DELETE',
-      });
-
-      const result = await response.json();
-      console.log('🗑️ Delete response:', result);
+      // Close edit dialog if it's open for the deleted activity
+      // Check all possible ID matches: id, tempId, serverId
+      if (editingActivity && (
+        editingActivity.id === activityId || 
+        editingActivity.tempId === activityId ||
+        editingActivity.serverId === activityId ||
+        (editingActivity.serverId || editingActivity.id) === activityId
+      )) {
+        console.log('🚪 Closing edit dialog for deleted activity:', activityId);
+        setIsEditDialogOpen(false);
+        setEditingActivity(null);
+      }
       
-      if (result.success) {
-        // Close edit dialog if it's open for the deleted activity
-        if (editingActivity && (editingActivity.id === activityId || editingActivity.tempId === activityId)) {
-          setIsEditDialogOpen(false);
-          setEditingActivity(null);
+      // Then try to delete from remote if online
+      if (isOnline()) {
+        try {
+          const response = await fetch(`/api/activities/${activityId}`, {
+            method: 'DELETE',
+          });
+
+          const result = await response.json();
+          console.log('🗑️ Delete response:', result);
+          
+          // Treat both success and 404 as successful deletion
+          // 404 means the activity was already deleted, which is the desired outcome
+          if (result.success || response.status === 404) {
+            console.log('✅ Activity successfully deleted from server');
+          } else {
+            console.warn('Server delete failed but local delete succeeded:', result.error);
+            // Don't show error since local deletion was successful
+          }
+        } catch (serverError) {
+          console.warn('Server delete failed but local delete succeeded:', serverError);
+          // Don't show error since local deletion was successful
         }
       } else {
-        console.error('Failed to delete from remote:', result.error);
-        setError(result.error || 'Failed to delete activity from server');
+        console.log('Offline - activity deleted locally, will sync when online');
       }
     } catch (error) {
       console.error('Error deleting activity:', error);
@@ -663,6 +691,14 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
       setDeletingActivity(null);
       setShowDeleteConfirm(false);
       setActivityToDelete(null);
+      
+      // Always close edit dialog after any delete operation
+      // This ensures the dialog closes even if ID matching fails
+      if (editingActivity) {
+        console.log('🚪 Force closing edit dialog after delete operation');
+        setIsEditDialogOpen(false);
+        setEditingActivity(null);
+      }
     }
   };
 
