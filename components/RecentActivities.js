@@ -4,12 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { DatePickerOnly } from "@/components/ui/date-picker-only";
+import { TimePickerOnly } from "@/components/ui/time-picker-only";
 import { useState, useEffect } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import { getAllLocalActivities, isOnline, syncRemoteToLocal, updateLocalActivity, removeLocalActivity, syncLocalActivities, getLocalActivity } from "@/lib/offline-storage";
 import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 import { getSyncService } from "@/lib/sync-service";
+import { useSession } from "next-auth/react";
 
 // Activity type icons and colors
 const getActivityDisplay = (type, subtype) => {
@@ -103,6 +105,51 @@ const getActivityDisplay = (type, subtype) => {
     bgColor: "bg-gray-50",
     label: "Activity"
   };
+};
+
+// Get creator icon based on who created the activity
+const getCreatorIcon = (activity, currentUserEmail) => {
+  if (!currentUserEmail) return null; // No session yet
+  
+  // For local activities (not yet synced), assume current user created them
+  if (activity.status === 'local' || (!activity.user && !activity.serverId)) {
+    return (
+      <span 
+        className="text-xs text-blue-600" 
+        title="Created by you"
+      >
+        👤
+      </span>
+    );
+  }
+  
+  // Check if current user created this activity (check both user email and ID)
+  const createdByMe = activity.user?.email === currentUserEmail || 
+                     activity.recorder === currentUserEmail ||
+                     (activity.user?.id && activity.recorder === activity.user.id);
+  
+  if (createdByMe) {
+    return (
+      <span 
+        className="text-xs text-blue-600" 
+        title="Created by you"
+      >
+        👤
+      </span>
+    );
+  } else if (activity.user) {
+    return (
+      <span 
+        className="text-xs text-green-600" 
+        title={`Created by ${activity.user.name || activity.user.email || 'Other user'}`}
+      >
+        👥
+      </span>
+    );
+  }
+  
+  // Default: no icon if we can't determine creator
+  return null;
 };
 
 // 🔥 NEW: Get sync status icon for activity
@@ -350,6 +397,7 @@ const formatDuration = (startTime, endTime) => {
 };
 
 export default function RecentActivities({ refreshTrigger, selectedBaby }) {
+  const { data: session } = useSession();
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -821,6 +869,8 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
                         <h4 className={`font-medium text-base ${display.color} activity-text`}>
                           {display.label}{activity.subtype && `(${getSubtypeLabel(activity.type, activity.subtype)})`}
                         </h4>
+                        {/* 🔥 NEW: Creator indicator */}
+                        {getCreatorIcon(activity, session?.user?.email)}
                         {/* 🔥 NEW: Sync status indicator */}
                         {getSyncStatusIcon(activity)}
                         <span className="text-xs text-gray-400">
@@ -935,27 +985,41 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {/* Start Time - Always shown */}
+            {/* Start Date & Time - Always shown */}
             <div>
-              <Label>Start Time</Label>
-              <DateTimePicker
-                value={editFormData.fromDateTime}
-                onChange={(dateTime) => setEditFormData(prev => ({ ...prev, fromDateTime: dateTime }))}
-                placeholder="Select start date and time"
-                className="mt-2"
-              />
+              <Label>Start Date & Time</Label>
+              <div className="grid grid-cols-2 gap-4 mt-2">
+                <DatePickerOnly
+                  value={editFormData.fromDateTime}
+                  onChange={(date) => setEditFormData(prev => ({ ...prev, fromDateTime: date }))}
+                  placeholder="Select start date"
+                />
+                
+                <TimePickerOnly
+                  value={editFormData.fromDateTime}
+                  onChange={(time) => setEditFormData(prev => ({ ...prev, fromDateTime: time }))}
+                  placeholder="Select start time"
+                />
+              </div>
             </div>
 
-            {/* End Time - Only for activities that can have duration: feeding (non-meal), sleeping, leisure activities */}
+            {/* End Date & Time - Only for activities that can have duration: feeding (non-meal), sleeping, leisure activities */}
             {!(editingActivity.type?.toLowerCase() === 'feeding' && editFormData.subtype === 'MEAL') && editingActivity.type?.toLowerCase() !== 'diapering' && editingActivity.type?.toLowerCase() !== 'growth' && !(editingActivity.type?.toLowerCase() === 'health' && (editFormData.subtype === 'HEALTH_MEDICATIONS' || editFormData.subtype === 'HEALTH_VACCINATIONS' || editFormData.subtype === 'HEALTH_TEMPERATURE')) && (
               <div>
-                <Label>End Time (optional)</Label>
-                <DateTimePicker
-                  value={editFormData.toDateTime}
-                  onChange={(dateTime) => setEditFormData(prev => ({ ...prev, toDateTime: dateTime }))}
-                  placeholder="Select end date and time"
-                  className="mt-2"
-                />
+                <Label>End Date & Time (optional)</Label>
+                <div className="grid grid-cols-2 gap-4 mt-2">
+                  <DatePickerOnly
+                    value={editFormData.toDateTime}
+                    onChange={(date) => setEditFormData(prev => ({ ...prev, toDateTime: date }))}
+                    placeholder="Select end date"
+                  />
+                  
+                  <TimePickerOnly
+                    value={editFormData.toDateTime}
+                    onChange={(time) => setEditFormData(prev => ({ ...prev, toDateTime: time }))}
+                    placeholder="Select end time"
+                  />
+                </div>
               </div>
             )}
 

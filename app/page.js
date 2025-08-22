@@ -4,7 +4,6 @@ import { useSession } from "next-auth/react";
 import { QuickActions } from "@/components/QuickActions";
 import RecentActivities from "@/components/RecentActivities";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
-import { LayoutIndicator } from "@/components/LayoutIndicator";
 import { AppHeader } from "@/components/AppHeader";
 import { AuthButton } from "@/components/AuthButton";
 import { useState, useEffect } from "react";
@@ -158,8 +157,6 @@ export default function Home() {
       {/* Offline indicator */}
       <OfflineIndicator />
       
-      {/* Layout indicator for development */}
-      <LayoutIndicator />
     </div>
   );
 }
