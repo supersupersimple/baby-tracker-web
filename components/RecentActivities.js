@@ -423,18 +423,18 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
       }
       setError(null);
       
-      // 🚀 LOCAL-FIRST: Always load from localStorage first with sync status
-      const localActivities = getAllLocalActivities();
-      // Filter activities for selected baby
-      const filteredActivities = selectedBaby ? 
-        localActivities.filter(activity => activity.babyId === selectedBaby.id || activity.baby?.id === selectedBaby.id) : 
-        localActivities;
+      // 🚀 LOCAL-FIRST: Always load from localStorage first with pagination
+      const localResult = getAllLocalActivities(selectedBaby?.id, 1, 100);
+      const localActivities = localResult.activities || [];
       
       if (reset) {
-        setActivities(filteredActivities);
+        setActivities(localActivities);
+        setTotalCount(localResult.totalCount || 0);
+        setHasMore(localResult.hasMore || false);
+        setCurrentPage(1);
         setLoading(false);
         // Show sync status if there are local activities
-        setSyncStatusVisible(filteredActivities.length > 0);
+        setSyncStatusVisible(localActivities.length > 0);
       }
       
       // Then sync with remote if online
@@ -449,14 +449,13 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
           }
           
           // Reload from localStorage after sync
-          const updatedLocalActivities = getAllLocalActivities();
-          // Filter activities for selected baby
-          const filteredUpdatedActivities = selectedBaby ? 
-            updatedLocalActivities.filter(activity => activity.babyId === selectedBaby.id || activity.baby?.id === selectedBaby.id) : 
-            updatedLocalActivities;
+          const updatedLocalResult = getAllLocalActivities(selectedBaby?.id, 1, 100);
+          const updatedLocalActivities = updatedLocalResult.activities || [];
           
           if (reset) {
-            setActivities(filteredUpdatedActivities);
+            setActivities(updatedLocalActivities);
+            setTotalCount(updatedLocalResult.totalCount || 0);
+            setHasMore(updatedLocalResult.hasMore || false);
           }
         } catch (syncError) {
           console.log('Background sync failed:', syncError);
@@ -478,7 +477,7 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
   }, [refreshTrigger, selectedBaby]);
 
   const loadMoreActivities = async () => {
-    if (!hasMore || loadingMore || !isOnline()) {
+    if (!hasMore || loadingMore) {
       return;
     }
 
@@ -486,23 +485,35 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
       setLoadingMore(true);
       const nextPage = currentPage + 1;
       
-      // Sync next page of remote data to local storage
-      const syncResult = await syncRemoteToLocal(selectedBaby, nextPage, 100);
+      // Load next page from local storage first
+      const localResult = getAllLocalActivities(selectedBaby?.id, nextPage, 100);
+      const newActivities = localResult.activities || [];
       
-      if (syncResult.success) {
+      if (newActivities.length > 0) {
+        // Append new activities to existing ones
+        setActivities(prev => [...prev, ...newActivities]);
         setCurrentPage(nextPage);
-        
-        if (syncResult.pagination) {
-          setHasMore(syncResult.pagination.hasMore);
+        setHasMore(localResult.hasMore || false);
+      }
+      
+      // Background sync if online (don't wait for it)
+      if (isOnline()) {
+        try {
+          await syncRemoteToLocal(selectedBaby, nextPage, 100);
+          // After sync, refresh the page data to get any new synced items
+          const refreshedResult = getAllLocalActivities(selectedBaby?.id, nextPage, 100);
+          if (refreshedResult.activities && refreshedResult.activities.length !== newActivities.length) {
+            // Update if sync brought new data
+            setActivities(prev => {
+              const existingPage = prev.slice(0, (nextPage - 1) * 100);
+              const allNewPages = getAllLocalActivities(selectedBaby?.id, 1, nextPage * 100).activities || [];
+              return allNewPages;
+            });
+          }
+        } catch (syncError) {
+          console.log('Background sync failed:', syncError);
+          // Continue with local data
         }
-        
-        // Reload from localStorage after sync
-        const updatedLocalActivities = getAllLocalActivities();
-        const filteredUpdatedActivities = selectedBaby ? 
-          updatedLocalActivities.filter(activity => activity.babyId === selectedBaby.id || activity.baby?.id === selectedBaby.id) : 
-          updatedLocalActivities;
-        
-        setActivities(filteredUpdatedActivities);
       }
     } catch (error) {
       console.error('Error loading more activities:', error);
@@ -614,12 +625,11 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
       const updatedActivity = updateLocalActivity(editingActivity.tempId || editingActivity.id, updateData);
       
       if (updatedActivity) {
-        // Refresh the activities list immediately from local storage
-        const localActivities = getAllLocalActivities();
-        const filteredActivities = selectedBaby ? 
-          localActivities.filter(activity => activity.babyId === selectedBaby.id || activity.baby?.id === selectedBaby.id) : 
-          localActivities;
-        setActivities(filteredActivities);
+        // Refresh the activities list immediately from local storage (maintain current pagination)
+        const localResult = getAllLocalActivities(selectedBaby?.id, 1, currentPage * 100);
+        setActivities(localResult.activities || []);
+        setTotalCount(localResult.totalCount || 0);
+        setHasMore(localResult.hasMore || false);
         
         setIsEditDialogOpen(false);
         setEditingActivity(null);
@@ -686,12 +696,11 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
       if (activity) {
         removeLocalActivity(activity.tempId || activity.id);
         
-        // Refresh from local storage immediately
-        const localActivities = getAllLocalActivities();
-        const filteredActivities = selectedBaby ? 
-          localActivities.filter(activity => activity.babyId === selectedBaby.id || activity.baby?.id === selectedBaby.id) : 
-          localActivities;
-        setActivities(filteredActivities);
+        // Refresh from local storage immediately (maintain current pagination)
+        const localResult = getAllLocalActivities(selectedBaby?.id, 1, currentPage * 100);
+        setActivities(localResult.activities || []);
+        setTotalCount(localResult.totalCount || 0);
+        setHasMore(localResult.hasMore || false);
       }
       
       // Close edit dialog if it's open for the deleted activity
@@ -736,14 +745,13 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
       console.error('Error deleting activity:', error);
       setError('Failed to delete activity: ' + error.message);
     } finally {
+      // Clear all delete-related state
       setDeletingActivity(null);
       setShowDeleteConfirm(false);
       setActivityToDelete(null);
       
       // Always close edit dialog after any delete operation
-      // This ensures the dialog closes even if ID matching fails
       if (editingActivity) {
-        console.log('🚪 Force closing edit dialog after delete operation');
         setIsEditDialogOpen(false);
         setEditingActivity(null);
       }
@@ -753,6 +761,7 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
   const cancelDelete = () => {
     setShowDeleteConfirm(false);
     setActivityToDelete(null);
+    setDeletingActivity(null);
   };
 
   if (loading) {
@@ -1207,7 +1216,16 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
     )}
 
     {/* Delete Confirmation Dialog */}
-    <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+    <Dialog 
+      open={showDeleteConfirm} 
+      onOpenChange={(open) => {
+        setShowDeleteConfirm(open);
+        if (!open) {
+          setActivityToDelete(null);
+          setDeletingActivity(null);
+        }
+      }}
+    >
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center">

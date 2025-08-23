@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Local Storage</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .result { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        button { padding: 10px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Baby Tracker Local Storage Debug</h1>
+    
+    <button onclick="showStorage()">Show Local Storage</button>
+    <button onclick="clearStorage()">Clear Storage</button>
+    <button onclick="testPagination()">Test Pagination Function</button>
+    
+    <div id="result"></div>
+    
+    <script>
+        function showStorage() {
+            const keys = ['baby-tracker-activities', 'baby-tracker-sync-queue', 'baby-tracker-metadata'];
+            let html = '<h3>Local Storage Contents:</h3>';
+            
+            keys.forEach(key => {
+                const data = localStorage.getItem(key);
+                if (data) {
+                    try {
+                        const parsed = JSON.parse(data);
+                        if (key === 'baby-tracker-activities' && parsed.activities) {
+                            html += `<div class="result">
+                                <strong>${key}:</strong><br>
+                                Total activities: ${parsed.activities.length}<br>
+                                Baby 3 activities: ${parsed.activities.filter(a => a.babyId === 3 || a.baby?.id === 3).length}<br>
+                                Sample activity: <pre>${JSON.stringify(parsed.activities[0] || 'None', null, 2)}</pre>
+                            </div>`;
+                        } else {
+                            html += `<div class="result"><strong>${key}:</strong><br><pre>${JSON.stringify(parsed, null, 2)}</pre></div>`;
+                        }
+                    } catch (e) {
+                        html += `<div class="result"><strong>${key}:</strong><br>Invalid JSON: ${data.substring(0, 200)}...</div>`;
+                    }
+                } else {
+                    html += `<div class="result"><strong>${key}:</strong> (empty)</div>`;
+                }
+            });
+            
+            document.getElementById('result').innerHTML = html;
+        }
+        
+        function clearStorage() {
+            const keys = ['baby-tracker-activities', 'baby-tracker-sync-queue', 'baby-tracker-metadata'];
+            keys.forEach(key => localStorage.removeItem(key));
+            alert('Local storage cleared!');
+            showStorage();
+        }
+        
+        function testPagination() {
+            const data = localStorage.getItem('baby-tracker-activities');
+            if (!data) {
+                alert('No local storage data found');
+                return;
+            }
+            
+            try {
+                const parsed = JSON.parse(data);
+                const activities = parsed.activities || [];
+                
+                // Test pagination logic
+                const babyId = 3;
+                const page = 1;
+                const limit = 100;
+                
+                let filtered = activities.filter(activity => 
+                    activity.babyId === babyId || activity.baby?.id === babyId
+                );
+                
+                filtered = filtered.sort((a, b) => 
+                    new Date(b.fromDate || b.timestamp) - new Date(a.fromDate || a.timestamp)
+                );
+                
+                const startIndex = (page - 1) * limit;
+                const endIndex = startIndex + limit;
+                const paginatedActivities = filtered.slice(startIndex, endIndex);
+                
+                const result = {
+                    activities: paginatedActivities,
+                    totalCount: filtered.length,
+                    currentPage: page,
+                    totalPages: Math.ceil(filtered.length / limit),
+                    hasMore: endIndex < filtered.length,
+                    itemsPerPage: limit
+                };
+                
+                document.getElementById('result').innerHTML = 
+                    `<h3>Pagination Test Result:</h3>
+                    <div class="result">
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    </div>`;
+                    
+            } catch (e) {
+                alert('Error parsing data: ' + e.message);
+            }
+        }
+        
+        // Show storage on load
+        showStorage();
+    </script>
+</body>
+</html>

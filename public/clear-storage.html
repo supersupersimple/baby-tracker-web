@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Baby Tracker Local Storage</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        button { background: #ff4444; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 10px; }
+        button:hover { background: #dd2222; }
+        .success { color: green; font-weight: bold; }
+        .info { background: #f0f0f0; padding: 15px; border-radius: 5px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🧹 Clear Baby Tracker Local Storage</h1>
+    
+    <div class="info">
+        <strong>When to use this:</strong>
+        <ul>
+            <li>After database schema changes (like adding ULID support)</li>
+            <li>When experiencing sync issues</li>
+            <li>To force a fresh sync with the server</li>
+        </ul>
+    </div>
+    
+    <button onclick="clearAllStorage()">Clear All Local Data</button>
+    <button onclick="clearActivitiesOnly()">Clear Activities Only</button>
+    <button onclick="showStorageInfo()">Show Storage Info</button>
+    
+    <div id="result"></div>
+    <div id="info"></div>
+    
+    <script>
+        function clearAllStorage() {
+            const keys = [
+                'baby-tracker-activities',
+                'baby-tracker-sync-queue', 
+                'baby-tracker-metadata',
+                'quickActionsSettings'
+            ];
+            
+            keys.forEach(key => {
+                localStorage.removeItem(key);
+                sessionStorage.removeItem(key);
+            });
+            
+            document.getElementById('result').innerHTML = 
+                '<p class="success">✅ All Baby Tracker local storage cleared!</p>' +
+                '<p>You can now go back to the main app. It will sync fresh data from the server.</p>' +
+                '<p><a href="/">← Back to Baby Tracker</a></p>';
+        }
+        
+        function clearActivitiesOnly() {
+            const keys = ['baby-tracker-activities', 'baby-tracker-sync-queue'];
+            
+            keys.forEach(key => {
+                localStorage.removeItem(key);
+                sessionStorage.removeItem(key);
+            });
+            
+            document.getElementById('result').innerHTML = 
+                '<p class="success">✅ Activity data cleared!</p>' +
+                '<p>Settings preserved. Activities will re-sync from server.</p>' +
+                '<p><a href="/">← Back to Baby Tracker</a></p>';
+        }
+        
+        function showStorageInfo() {
+            const info = [];
+            const keys = ['baby-tracker-activities', 'baby-tracker-sync-queue', 'baby-tracker-metadata'];
+            
+            keys.forEach(key => {
+                const data = localStorage.getItem(key);
+                if (data) {
+                    try {
+                        const parsed = JSON.parse(data);
+                        if (key === 'baby-tracker-activities' && parsed.activities) {
+                            info.push(`📊 ${key}: ${parsed.activities.length} activities`);
+                        } else if (Array.isArray(parsed)) {
+                            info.push(`📊 ${key}: ${parsed.length} items`);
+                        } else {
+                            info.push(`📊 ${key}: ${Object.keys(parsed).length} properties`);
+                        }
+                    } catch (e) {
+                        info.push(`📊 ${key}: ${data.length} characters`);
+                    }
+                } else {
+                    info.push(`📊 ${key}: (empty)`);
+                }
+            });
+            
+            document.getElementById('info').innerHTML = 
+                '<h3>Current Storage:</h3><ul><li>' + info.join('</li><li>') + '</li></ul>';
+        }
+        
+        // Show storage info on page load
+        showStorageInfo();
+    </script>
+</body>
+</html>

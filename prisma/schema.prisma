@@ -124,6 +124,8 @@ model BabyAccess {
 // Activity table - records baby activities like feeding/sleeping
 model Activity {
   id        Int       @id @default(autoincrement())
+  ulid      String?   @unique // Global unique identifier for local-remote sync
+  status    String    @default("active") // 'active', 'deleted' for soft delete
   babyId    Int       @map("baby_id")
   recorder  Int       // user id who recorded this activity
   type      String    // 'FEEDING', 'SLEEPING', 'DIAPERING', 'MEDICINE', etc.

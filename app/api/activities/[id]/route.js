@@ -79,6 +79,20 @@ export async function PATCH(request, { params }) {
           }
         }
       });
+    } else {
+      // Try to find by ULID
+      existingActivity = await prisma.activity.findUnique({
+        where: { ulid: id },
+        include: {
+          baby: {
+            select: {
+              id: true,
+              babyName: true,
+              ownerId: true
+            }
+          }
+        }
+      });
     }
 
     // If not found by server ID, this might be a local ULID that needs to be synced first
@@ -128,7 +142,11 @@ export async function PATCH(request, { params }) {
       };
 
       const newActivity = await prisma.activity.create({
-        data: createData,
+        data: {
+          ...createData,
+          ulid: id, // Store the client ULID
+          status: 'active'
+        },
         include: {
           user: {
             select: {
@@ -252,19 +270,38 @@ export async function DELETE(request, { params }) {
       }, { status: 404 });
     }
 
-    // Check if activity exists and get baby info
-    const existingActivity = await prisma.activity.findUnique({
-      where: { id: activityId },
-      include: {
-        baby: {
-          select: {
-            id: true,
-            babyName: true,
-            ownerId: true
+    // Check if activity exists and get baby info (try by ID first, then by ULID)
+    let existingActivity = null;
+    if (!isNaN(activityId)) {
+      existingActivity = await prisma.activity.findUnique({
+        where: { id: activityId },
+        include: {
+          baby: {
+            select: {
+              id: true,
+              babyName: true,
+              ownerId: true
+            }
           }
         }
-      }
-    });
+      });
+    }
+    
+    // If not found by ID, try by ULID
+    if (!existingActivity) {
+      existingActivity = await prisma.activity.findUnique({
+        where: { ulid: id },
+        include: {
+          baby: {
+            select: {
+              id: true,
+              babyName: true,
+              ownerId: true
+            }
+          }
+        }
+      });
+    }
 
     if (!existingActivity) {
       return NextResponse.json({ 
@@ -282,9 +319,13 @@ export async function DELETE(request, { params }) {
       }, { status: 403 });
     }
 
-    // Delete the activity
-    await prisma.activity.delete({
-      where: { id: activityId }
+    // Soft delete the activity
+    await prisma.activity.update({
+      where: { id: existingActivity.id },
+      data: { 
+        status: 'deleted',
+        updatedAt: new Date()
+      }
     });
 
     return NextResponse.json({

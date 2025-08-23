@@ -83,11 +83,17 @@ export async function GET(request) {
 
     // Get total count for pagination info
     const totalCount = await prisma.activity.count({
-      where: whereClause
+      where: {
+        ...whereClause,
+        status: 'active' // Only count active activities
+      }
     });
 
     const activities = await prisma.activity.findMany({
-      where: whereClause,
+      where: {
+        ...whereClause,
+        status: 'active' // Only get active activities
+      },
       include: {
         user: {
           select: {
@@ -144,7 +150,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { babyId, type, subtype, startTime, endTime, fromDate, toDate, unit, amount, category, details } = body;
+    const { babyId, type, subtype, startTime, endTime, fromDate, toDate, unit, amount, category, details, clientId } = body;
     
     // Support both legacy (startTime/endTime) and new (fromDate/toDate) field names
     const activityFromDate = fromDate || startTime;
@@ -200,6 +206,8 @@ export async function POST(request) {
       data: {
         babyId: parseInt(babyId),
         recorder: user.id, // Use actual logged-in user
+        ulid: clientId || null, // Store client ULID for sync
+        status: 'active', // Default to active
         type,
         subtype: subtype || null,
         fromDate: new Date(activityFromDate),
