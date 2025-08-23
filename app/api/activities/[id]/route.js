@@ -80,9 +80,24 @@ export async function PATCH(request, { params }) {
         }
       });
     } else {
-      // Try to find by ULID
-      existingActivity = await prisma.activity.findUnique({
-        where: { ulid: id },
+      // Try to find by ULID - since ULID now requires babyId in composite constraint,
+      // we need to search across all babies the user has access to
+      const userBabies = await prisma.baby.findMany({
+        where: {
+          OR: [
+            { ownerId: user.id },
+            { babyAccess: { some: { userId: user.id } } }
+          ]
+        },
+        select: { id: true }
+      });
+
+      // Search for activity with matching ULID across user's accessible babies
+      existingActivity = await prisma.activity.findFirst({
+        where: {
+          ulid: id,
+          babyId: { in: userBabies.map(baby => baby.id) }
+        },
         include: {
           baby: {
             select: {
@@ -287,10 +302,23 @@ export async function DELETE(request, { params }) {
       });
     }
     
-    // If not found by ID, try by ULID
+    // If not found by ID, try by ULID across user's accessible babies
     if (!existingActivity) {
-      existingActivity = await prisma.activity.findUnique({
-        where: { ulid: id },
+      const userBabies = await prisma.baby.findMany({
+        where: {
+          OR: [
+            { ownerId: user.id },
+            { babyAccess: { some: { userId: user.id } } }
+          ]
+        },
+        select: { id: true }
+      });
+
+      existingActivity = await prisma.activity.findFirst({
+        where: {
+          ulid: id,
+          babyId: { in: userBabies.map(baby => baby.id) }
+        },
         include: {
           baby: {
             select: {

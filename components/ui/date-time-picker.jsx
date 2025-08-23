@@ -121,14 +121,14 @@ export function DateTimePicker({
           />
           <div className="flex h-[300px] divide-x">
             {/* Hours */}
-            <ScrollArea className="w-20" ref={hourScrollRef}>
+            <ScrollArea className="w-20 h-[300px]" ref={hourScrollRef}>
               <div className="flex flex-col p-1">
                 {hours.map((hour) => (
                   <Button
                     key={hour}
                     size="sm"
                     variant={date && date.getHours() === hour ? "default" : "ghost"}
-                    className="w-full mb-1 text-sm h-8"
+                    className="w-full mb-1 text-sm h-8 shrink-0"
                     data-hour={hour}
                     onClick={() => handleTimeChange("hour", hour)}
                   >
@@ -136,17 +136,18 @@ export function DateTimePicker({
                   </Button>
                 ))}
               </div>
+              <ScrollBar orientation="vertical" />
             </ScrollArea>
             
             {/* Minutes */}
-            <ScrollArea className="w-20" ref={minuteScrollRef}>
+            <ScrollArea className="w-20 h-[300px]" ref={minuteScrollRef}>
               <div className="flex flex-col p-1">
                 {minutes.map((minute) => (
                   <Button
                     key={minute}
                     size="sm"
                     variant={date && date.getMinutes() === minute ? "default" : "ghost"}
-                    className="w-full mb-1 text-sm h-8"
+                    className="w-full mb-1 text-sm h-8 shrink-0"
                     data-minute={minute}
                     onClick={() => handleTimeChange("minute", minute)}
                   >
@@ -154,6 +155,7 @@ export function DateTimePicker({
                   </Button>
                 ))}
               </div>
+              <ScrollBar orientation="vertical" />
             </ScrollArea>
           </div>
         </div>
@@ -242,14 +244,14 @@ export function TimePicker({
       <PopoverContent className="w-auto p-0" align="start">
         <div className="flex flex-col sm:flex-row sm:h-[300px] divide-y sm:divide-y-0 sm:divide-x">
           {/* Hours */}
-          <ScrollArea className="w-64 sm:w-auto">
+          <ScrollArea className="w-64 h-[200px] sm:w-24 sm:h-[300px]">
             <div className="flex sm:flex-col p-2">
               {hours.map((hour) => (
                 <Button
                   key={hour}
-                  size="icon"
+                  size="sm"
                   variant={currentHour === hour ? "default" : "ghost"}
-                  className="sm:w-full shrink-0 aspect-square"
+                  className="sm:w-full shrink-0 mb-1 min-w-[2.5rem]"
                   onClick={() => handleTimeChange("hour", hour)}
                 >
                   {hour.toString().padStart(2, '0')}
@@ -257,17 +259,18 @@ export function TimePicker({
               ))}
             </div>
             <ScrollBar orientation="horizontal" className="sm:hidden" />
+            <ScrollBar orientation="vertical" className="hidden sm:block" />
           </ScrollArea>
           
           {/* Minutes */}
-          <ScrollArea className="w-64 sm:w-auto">
+          <ScrollArea className="w-64 h-[200px] sm:w-24 sm:h-[300px]">
             <div className="flex sm:flex-col p-2">
               {minutes.map((minute) => (
                 <Button
                   key={minute}
-                  size="icon"
+                  size="sm"
                   variant={currentMinute === minute ? "default" : "ghost"}
-                  className="sm:w-full shrink-0 aspect-square"
+                  className="sm:w-full shrink-0 mb-1 min-w-[2.5rem]"
                   onClick={() => handleTimeChange("minute", minute)}
                 >
                   {minute.toString().padStart(2, '0')}
@@ -275,6 +278,7 @@ export function TimePicker({
               ))}
             </div>
             <ScrollBar orientation="horizontal" className="sm:hidden" />
+            <ScrollBar orientation="vertical" className="hidden sm:block" />
           </ScrollArea>
         </div>
         

@@ -13,7 +13,7 @@ import { format } from "date-fns";
 import { manualSyncActivities, isOnline } from "@/lib/offline-storage";
 import { CompactSyncStatus } from "@/components/SyncStatusIndicator";
 import { BatchSyncButton } from "@/components/BatchSyncButton";
-import { initSyncService } from "@/lib/sync-service";
+import { initSyncService, getSyncService } from "@/lib/sync-service";
 
 export function AppHeader({ selectedBaby, onBabyChange }) {
   const { data: session } = useSession();
@@ -27,6 +27,7 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [clearingAndResyncing, setClearingAndResyncing] = useState(false);
   const [message, setMessage] = useState("");
   const [sharedUsers, setSharedUsers] = useState([]);
   const [quickActionsSettings, setQuickActionsSettings] = useState(() => {
@@ -413,6 +414,61 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
     }
   };
 
+  const handleClearAndResync = async () => {
+    if (!isOnline()) {
+      setMessage("❌ Cannot clear and resync while offline");
+      setTimeout(() => setMessage(""), 5000);
+      return;
+    }
+
+    if (!selectedBaby) {
+      setMessage("❌ Please select a baby first");
+      setTimeout(() => setMessage(""), 5000);
+      return;
+    }
+
+    // Confirmation dialog
+    const confirmed = window.confirm(
+      `⚠️ Clear Local Data & Re-sync\n\n` +
+      `This will:\n` +
+      `• Delete all local activity data\n` +
+      `• Download fresh data from server\n` +
+      `• Resolve any sync conflicts\n\n` +
+      `Are you sure you want to continue?`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setClearingAndResyncing(true);
+    setMessage("🧹 Clearing local data and re-syncing from server...");
+    setShowMenu(false);
+
+    try {
+      const syncService = getSyncService();
+      const result = await syncService.clearLocalAndResync(selectedBaby.id);
+      
+      if (result.success) {
+        setMessage(`✅ ${result.message}`);
+        
+        // Trigger a refresh after a short delay
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        setMessage("❌ Clear and resync failed");
+      }
+      
+    } catch (error) {
+      console.error('Clear and resync failed:', error);
+      setMessage(`❌ Clear and resync failed: ${error.message}`);
+    } finally {
+      setClearingAndResyncing(false);
+      setTimeout(() => setMessage(""), 10000);
+    }
+  };
+
   if (!session) {
     return (
       <nav className="bg-white shadow-sm border-b border-gray-200">
@@ -572,6 +628,16 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
                         >
                           <span className="mr-2">{syncing ? '🔄' : '🔄'}</span>
                           {syncing ? 'Syncing...' : 'Manual Sync'}
+                        </button>
+
+                        {/* Clear Local & Re-sync */}
+                        <button
+                          onClick={handleClearAndResync}
+                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          disabled={clearingAndResyncing || !selectedBaby || !isOnline()}
+                        >
+                          <span className="mr-2">{clearingAndResyncing ? '🧹' : '🗑️'}</span>
+                          {clearingAndResyncing ? 'Clearing & Re-syncing...' : 'Clear Local & Re-sync'}
                         </button>
 
                         <div className="border-t border-gray-100 my-1"></div>

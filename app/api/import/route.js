@@ -258,40 +258,135 @@ export async function POST(request) {
         ulid: true,
         type: true,
         subtype: true,
-        fromDate: true
+        fromDate: true,
+        amount: true,
+        unit: true,
+        category: true,
+        details: true
       }
     });
 
-    // Create a Set for fast duplicate checking
-    const existingSet = new Set(
+    // Helper function to create content hash for comprehensive duplicate detection
+    const createContentHash = (activity) => {
+      const content = {
+        type: activity.type,
+        subtype: activity.subtype,
+        amount: activity.amount,
+        unit: activity.unit,
+        category: activity.category,
+        details: activity.details?.trim() || ''
+      };
+      return JSON.stringify(content);
+    };
+
+    // Create a more comprehensive duplicate detection system
+    // We'll use multiple strategies for better accuracy
+    
+    // Strategy 1: Exact timestamp + type + subtype matching
+    const exactMatchSet = new Set(
       existingActivities.map(activity => 
         `${activity.type}-${activity.subtype}-${activity.fromDate}`
       )
     );
+    
+    // Strategy 3: Content-based matching (for activities with same time but different details)
+    const contentHashMap = new Map();
+    existingActivities.forEach(activity => {
+      const timestamp = new Date(activity.fromDate).getTime();
+      const contentHash = createContentHash(activity);
+      const key = `${contentHash}-${Math.floor(timestamp / (5 * 60 * 1000))}`; // 5-minute window
+      
+      if (!contentHashMap.has(key)) {
+        contentHashMap.set(key, []);
+      }
+      contentHashMap.get(key).push(activity);
+    });
+    
+    // Strategy 2: Near-duplicate detection (within 1 minute window)
+    const nearDuplicateMap = new Map();
+    existingActivities.forEach(activity => {
+      const timestamp = new Date(activity.fromDate).getTime();
+      const key = `${activity.type}-${activity.subtype}`;
+      
+      if (!nearDuplicateMap.has(key)) {
+        nearDuplicateMap.set(key, []);
+      }
+      nearDuplicateMap.get(key).push({
+        ...activity,
+        timestamp
+      });
+    });
+    
+    // Helper function to check for near duplicates (within 1 minute)
+    const isNearDuplicate = (activityData) => {
+      const timestamp = new Date(activityData.fromDate).getTime();
+      const key = `${activityData.type}-${activityData.subtype}`;
+      const similarActivities = nearDuplicateMap.get(key) || [];
+      
+      const ONE_MINUTE = 60 * 1000; // 1 minute in milliseconds
+      
+      return similarActivities.some(existing => 
+        Math.abs(existing.timestamp - timestamp) <= ONE_MINUTE
+      );
+    };
 
-    console.log('📊 Found', existingSet.size, 'existing activities in database');
+    console.log('📊 Found', exactMatchSet.size, 'existing activities in database');
 
     // Also check for duplicates within the import data itself
-    const importSet = new Set();
+    const importExactSet = new Set();
+    const importNearMap = new Map();
     const activitiesToInsert = [];
     
     validActivities.forEach((activity, index) => {
-      const key = `${activity.type}-${activity.subtype}-${activity.fromDate}`;
+      const exactKey = `${activity.type}-${activity.subtype}-${activity.fromDate}`;
+      const nearKey = `${activity.type}-${activity.subtype}`;
+      const timestamp = new Date(activity.fromDate).getTime();
       
-      // Check if it exists in database
-      if (existingSet.has(key)) {
-        skippedActivities.push(`Record ${index + 1}: Duplicate activity (exists in database)`);
+      // Check for exact match in database
+      if (exactMatchSet.has(exactKey)) {
+        skippedActivities.push(`Record ${index + 1}: Exact duplicate (exists in database)`);
         return;
       }
       
-      // Check if it's a duplicate within this import
-      if (importSet.has(key)) {
-        skippedActivities.push(`Record ${index + 1}: Duplicate activity (duplicate within import file)`);
+      // Check for near duplicate in database (within 1 minute)
+      if (isNearDuplicate(activity)) {
+        skippedActivities.push(`Record ${index + 1}: Near duplicate (similar activity within 1 minute in database)`);
         return;
       }
       
-      // It's unique, add to both sets and include for insert
-      importSet.add(key);
+      // Check for content-based duplicate (same content within 5-minute window)
+      const contentHash = createContentHash(activity);
+      const contentKey = `${contentHash}-${Math.floor(timestamp / (5 * 60 * 1000))}`;
+      if (contentHashMap.has(contentKey)) {
+        skippedActivities.push(`Record ${index + 1}: Content duplicate (same activity details within 5 minutes in database)`);
+        return;
+      }
+      
+      // Check for exact duplicate within this import file
+      if (importExactSet.has(exactKey)) {
+        skippedActivities.push(`Record ${index + 1}: Exact duplicate (duplicate within import file)`);
+        return;
+      }
+      
+      // Check for near duplicate within this import file
+      const importSimilar = importNearMap.get(nearKey) || [];
+      const ONE_MINUTE = 60 * 1000;
+      const hasNearDuplicateInImport = importSimilar.some(existing => 
+        Math.abs(existing.timestamp - timestamp) <= ONE_MINUTE
+      );
+      
+      if (hasNearDuplicateInImport) {
+        skippedActivities.push(`Record ${index + 1}: Near duplicate (similar activity within 1 minute in import file)`);
+        return;
+      }
+      
+      // It's unique, add to tracking sets and include for insert
+      importExactSet.add(exactKey);
+      if (!importNearMap.has(nearKey)) {
+        importNearMap.set(nearKey, []);
+      }
+      importNearMap.get(nearKey).push({ timestamp, index });
+      
       activitiesToInsert.push(activity);
     });
 

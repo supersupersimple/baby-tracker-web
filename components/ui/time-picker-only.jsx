@@ -11,7 +11,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
  
 export function TimePickerOnly({ 
   value, 
@@ -21,6 +20,8 @@ export function TimePickerOnly({
   className 
 }) {
   const [isOpen, setIsOpen] = React.useState(false);
+  const hourScrollRef = React.useRef(null);
+  const minuteScrollRef = React.useRef(null);
   
   // Parse value prop to Date object
   const date = React.useMemo(() => {
@@ -54,6 +55,29 @@ export function TimePickerOnly({
       onChange?.(newDate);
     }
   };
+
+  // Scroll to selected values when popover opens
+  React.useEffect(() => {
+    if (isOpen && date) {
+      setTimeout(() => {
+        // Scroll to selected hour
+        if (hourScrollRef.current) {
+          const hourButton = hourScrollRef.current.querySelector(`[data-hour="${date.getHours()}"]`);
+          if (hourButton) {
+            hourButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+        
+        // Scroll to selected minute
+        if (minuteScrollRef.current) {
+          const minuteButton = minuteScrollRef.current.querySelector(`[data-minute="${date.getMinutes()}"]`);
+          if (minuteButton) {
+            minuteButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+      }, 100);
+    }
+  }, [isOpen, date]);
  
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -76,37 +100,85 @@ export function TimePickerOnly({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
-        <div className="flex divide-x">
-          <ScrollArea className="w-24">
-            <div className="flex flex-col p-2">
-              {hours.map((hour) => (
-                <Button
-                  key={hour}
-                  size="sm"
-                  variant={date && date.getHours() === hour ? "default" : "ghost"}
-                  className="w-full justify-center shrink-0"
-                  onClick={() => handleTimeChange("hour", hour.toString())}
-                >
-                  {hour.toString().padStart(2, '0')}
-                </Button>
-              ))}
+        <div className="flex">
+          {/* Hours Column */}
+          <div className="w-20 h-64 border-r">
+            <div className="text-xs font-medium text-center py-2 border-b bg-gray-50">Hour</div>
+            <div 
+              ref={hourScrollRef}
+              className="h-56 overflow-y-auto scrollbar-thin"
+              style={{ 
+                overflowY: 'scroll',
+                WebkitOverflowScrolling: 'touch'
+              }}
+            >
+              <div className="flex flex-col">
+                {hours.map((hour) => (
+                  <Button
+                    key={hour}
+                    size="sm"
+                    variant={date && date.getHours() === hour ? "default" : "ghost"}
+                    className="w-full justify-center rounded-none border-0 h-8 text-sm font-mono"
+                    data-hour={hour}
+                    onClick={() => handleTimeChange("hour", hour.toString())}
+                  >
+                    {hour.toString().padStart(2, '0')}
+                  </Button>
+                ))}
+              </div>
             </div>
-          </ScrollArea>
-          <ScrollArea className="w-24">
-            <div className="flex flex-col p-2">
-              {minutes.map((minute) => (
-                <Button
-                  key={minute}
-                  size="sm"
-                  variant={date && date.getMinutes() === minute ? "default" : "ghost"}
-                  className="w-full justify-center shrink-0"
-                  onClick={() => handleTimeChange("minute", minute.toString())}
-                >
-                  {minute.toString().padStart(2, '0')}
-                </Button>
-              ))}
+          </div>
+          
+          {/* Minutes Column */}
+          <div className="w-20 h-64">
+            <div className="text-xs font-medium text-center py-2 border-b bg-gray-50">Min</div>
+            <div 
+              ref={minuteScrollRef}
+              className="h-56 overflow-y-auto scrollbar-thin"
+              style={{ 
+                overflowY: 'scroll',
+                WebkitOverflowScrolling: 'touch'
+              }}
+            >
+              <div className="flex flex-col">
+                {minutes.map((minute) => (
+                  <Button
+                    key={minute}
+                    size="sm"
+                    variant={date && date.getMinutes() === minute ? "default" : "ghost"}
+                    className="w-full justify-center rounded-none border-0 h-8 text-sm font-mono"
+                    data-minute={minute}
+                    onClick={() => handleTimeChange("minute", minute.toString())}
+                  >
+                    {minute.toString().padStart(2, '0')}
+                  </Button>
+                ))}
+              </div>
             </div>
-          </ScrollArea>
+          </div>
+        </div>
+        
+        {/* Quick actions */}
+        <div className="border-t p-2 flex justify-between">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const now = new Date();
+              onChange?.(now);
+            }}
+          >
+            Now
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              onChange?.(undefined);
+            }}
+          >
+            Clear
+          </Button>
         </div>
       </PopoverContent>
     </Popover>

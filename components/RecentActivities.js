@@ -692,15 +692,34 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
       } : 'none');
       
       // OFFLINE-FIRST: Remove from local storage first
-      const activity = activities.find(a => a.id === activityId || a.tempId === activityId);
+      const activity = activities.find(a => 
+        a.id === activityId || 
+        a.tempId === activityId || 
+        a.serverId === activityId ||
+        String(a.serverId) === String(activityId)
+      );
+      
       if (activity) {
-        removeLocalActivity(activity.tempId || activity.id);
+        console.log('🎯 Found activity to delete:', {
+          id: activity.id,
+          tempId: activity.tempId,
+          serverId: activity.serverId,
+          searchId: activityId
+        });
+        
+        // Remove using the activity's local ID (ULID or tempId)
+        const localId = activity.id || activity.tempId;
+        removeLocalActivity(localId);
         
         // Refresh from local storage immediately (maintain current pagination)
         const localResult = getAllLocalActivities(selectedBaby?.id, 1, currentPage * 100);
         setActivities(localResult.activities || []);
         setTotalCount(localResult.totalCount || 0);
         setHasMore(localResult.hasMore || false);
+        
+        console.log('🔄 UI updated after local deletion');
+      } else {
+        console.warn('⚠️ Activity not found in local activities for deletion:', activityId);
       }
       
       // Close edit dialog if it's open for the deleted activity
@@ -709,7 +728,8 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
         editingActivity.id === activityId || 
         editingActivity.tempId === activityId ||
         editingActivity.serverId === activityId ||
-        (editingActivity.serverId || editingActivity.id) === activityId
+        String(editingActivity.serverId) === String(activityId) ||
+        String(editingActivity.id) === String(activityId)
       )) {
         console.log('🚪 Closing edit dialog for deleted activity:', activityId);
         setIsEditDialogOpen(false);

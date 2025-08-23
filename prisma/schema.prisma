@@ -124,7 +124,7 @@ model BabyAccess {
 // Activity table - records baby activities like feeding/sleeping
 model Activity {
   id        Int       @id @default(autoincrement())
-  ulid      String?   @unique // Global unique identifier for local-remote sync
+  ulid      String?   // Local-remote sync identifier (unique per baby)
   status    String    @default("active") // 'active', 'deleted' for soft delete
   babyId    Int       @map("baby_id")
   recorder  Int       // user id who recorded this activity
@@ -144,5 +144,7 @@ model Activity {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
+  // Composite unique constraint: ULID only needs to be unique within a baby's context
+  @@unique([babyId, ulid], name: "baby_ulid_unique")
   @@map("activities")
 }
