@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authConfig } from '../../../lib/auth.js';
 import { prisma } from '../../../lib/prisma.js';
 import JSZip from 'jszip';
+import { ulid } from 'ulid';
 
 export async function POST(request) {
   try {
@@ -199,6 +200,8 @@ export async function POST(request) {
         const activityData = {
           babyId: parseInt(babyId), // Use the specified baby ID
           recorder: user.id, // Use the authenticated user ID
+          ulid: ulid(), // Generate ULID for sync compatibility
+          status: 'active', // Mark as active (not deleted)
           type: record.type?.toUpperCase() || 'FEEDING',
           subtype: record.subtype?.toUpperCase() || 'BOTTLE',
           fromDate: convertDateFormat(record.fromDate),
@@ -247,10 +250,12 @@ export async function POST(request) {
     // Get ALL existing activities for this baby (more efficient than complex OR queries)
     const existingActivities = await prisma.activity.findMany({
       where: {
-        babyId: parseInt(babyId)
+        babyId: parseInt(babyId),
+        status: 'active' // Only check active activities for duplicates
       },
       select: {
         id: true,
+        ulid: true,
         type: true,
         subtype: true,
         fromDate: true
@@ -298,7 +303,10 @@ export async function POST(request) {
       // Try just one activity first to see the exact error
       console.log('🧪 Testing with one activity first...');
       const testActivity = activitiesToInsert[0];
-      console.log('🧪 Test activity data:', JSON.stringify(testActivity, null, 2));
+      console.log('🧪 Test activity data:', JSON.stringify({
+        ...testActivity,
+        ulid: testActivity.ulid ? `${testActivity.ulid.substring(0, 8)}...` : null // Show partial ULID for privacy
+      }, null, 2));
       
       try {
         const testResult = await prisma.activity.create({
