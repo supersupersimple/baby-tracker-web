@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +62,27 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
   const [saving, setSaving] = useState(false);
   const [floatingMessage, setFloatingMessage] = useState("");
   const [showAllActionsDropdown, setShowAllActionsDropdown] = useState(false);
+
+  // Handle PWA shortcuts from URL parameters
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const actionParam = urlParams.get('action');
+      
+      if (actionParam && selectedBaby) {
+        const action = quickActions.find(a => a.id === actionParam);
+        if (action) {
+          // Delay to ensure component is fully loaded
+          setTimeout(() => {
+            handleActionClick(action);
+          }, 100);
+          
+          // Clean up URL without reloading
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      }
+    }
+  }, [selectedBaby]); // Re-run when selectedBaby changes
 
   const handleActionClick = async (action) => {
     // Check if user has permission to add activities

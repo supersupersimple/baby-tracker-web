@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear PWA Cache - Baby Tracker</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        button { background: #dc3545; color: white; padding: 15px 30px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin: 10px; }
+        button:hover { background: #c82333; }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        .step { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #007bff; }
+    </style>
+</head>
+<body>
+    <h1>🧹 Clear PWA Cache - Baby Tracker</h1>
+    
+    <p>This page will help clear Chrome's PWA cache to fix manifest issues.</p>
+    
+    <div class="step">
+        <h3>Step 1: Clear Service Worker & Cache</h3>
+        <button onclick="clearAll()">🗑️ Clear All PWA Data</button>
+        <div id="clearResult"></div>
+    </div>
+    
+    <div class="step">
+        <h3>Step 2: Manual Chrome Steps</h3>
+        <ol>
+            <li>Open Chrome DevTools (F12)</li>
+            <li>Go to <strong>Application</strong> tab</li>
+            <li>In <strong>Storage</strong> section, click <strong>"Clear storage"</strong></li>
+            <li>Check all boxes and click <strong>"Clear site data"</strong></li>
+            <li>Go to <strong>Service Workers</strong> and click <strong>"Unregister"</strong></li>
+            <li>Close DevTools and refresh the page</li>
+        </ol>
+    </div>
+    
+    <div class="step">
+        <h3>Step 3: Test Again</h3>
+        <p>After clearing, visit: <a href="/">http://localhost:3000</a></p>
+        <p>Or test with: <a href="/pwa-debug.html">PWA Debug Page</a></p>
+    </div>
+    
+    <script>
+        async function clearAll() {
+            const resultDiv = document.getElementById('clearResult');
+            resultDiv.innerHTML = 'Clearing...';
+            
+            try {
+                // Unregister service workers
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    for (let registration of registrations) {
+                        await registration.unregister();
+                        console.log('Unregistered SW:', registration);
+                    }
+                    resultDiv.innerHTML += '<div class="success">✅ Service Workers unregistered</div>';
+                }
+                
+                // Clear all caches
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(cacheNames.map(name => caches.delete(name)));
+                    resultDiv.innerHTML += '<div class="success">✅ Cleared ' + cacheNames.length + ' cache(s)</div>';
+                }
+                
+                // Clear localStorage
+                localStorage.clear();
+                resultDiv.innerHTML += '<div class="success">✅ Cleared localStorage</div>';
+                
+                // Clear sessionStorage
+                sessionStorage.clear();
+                resultDiv.innerHTML += '<div class="success">✅ Cleared sessionStorage</div>';
+                
+                resultDiv.innerHTML += '<div class="success"><strong>✅ All PWA data cleared! Now refresh the main app.</strong></div>';
+                
+            } catch (error) {
+                resultDiv.innerHTML += '<div class="error">❌ Error: ' + error.message + '</div>';
+            }
+        }
+    </script>
+</body>
+</html>

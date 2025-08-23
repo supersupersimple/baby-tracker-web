@@ -1,0 +1,48 @@
+{
+  "name": "Baby Tracker",
+  "short_name": "BabyTracker",
+  "description": "Track your baby's activities - feeding, sleeping, diaper changes and more",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "categories": ["lifestyle", "health", "productivity"],
+  "lang": "en",
+  "id": "/",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512x512.png", 
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Add Feeding",
+      "short_name": "Feeding",
+      "description": "Quickly add a feeding activity",
+      "url": "/?action=feeding"
+    },
+    {
+      "name": "Add Sleep",
+      "short_name": "Sleep", 
+      "description": "Start tracking sleep",
+      "url": "/?action=sleeping"
+    },
+    {
+      "name": "Add Diaper",
+      "short_name": "Diaper",
+      "description": "Record diaper change", 
+      "url": "/?action=diapering"
+    }
+  ]
+}

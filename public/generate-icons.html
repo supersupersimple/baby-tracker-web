@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate PWA Icons</title>
+</head>
+<body>
+    <h1>Generating PWA Icons...</h1>
+    <canvas id="canvas192" width="192" height="192" style="border: 1px solid #ccc; margin: 10px;"></canvas>
+    <canvas id="canvas512" width="512" height="512" style="border: 1px solid #ccc; margin: 10px;"></canvas>
+    
+    <div>
+        <button onclick="downloadIcons()">Download Icons</button>
+        <p id="status">Generating icons...</p>
+    </div>
+
+    <script>
+        function createIcon(canvas, size) {
+            const ctx = canvas.getContext('2d');
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, size, size);
+            
+            // Background circle (blue)
+            ctx.fillStyle = '#3b82f6';
+            ctx.beginPath();
+            ctx.arc(size/2, size/2, size/2, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // White inner circle
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(size/2, size/2, size * 0.38, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Baby bottle
+            const bottleWidth = size * 0.15;
+            const bottleHeight = size * 0.25;
+            const bottleX = size/2 - bottleWidth/2;
+            const bottleY = size * 0.25;
+            
+            // Bottle body
+            ctx.fillStyle = '#3b82f6';
+            ctx.fillRect(bottleX, bottleY, bottleWidth, bottleHeight);
+            
+            // Bottle cap
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillRect(bottleX - size * 0.02, bottleY - size * 0.04, bottleWidth + size * 0.04, size * 0.04);
+            
+            // Milk level
+            ctx.fillStyle = '#e0f2fe';
+            ctx.fillRect(bottleX + 2, bottleY + bottleHeight * 0.3, bottleWidth - 4, bottleHeight * 0.5);
+            
+            // Text
+            ctx.fillStyle = '#3b82f6';
+            ctx.font = `bold ${size * 0.08}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.fillText('Baby', size/2, size * 0.7);
+            ctx.fillText('Tracker', size/2, size * 0.8);
+        }
+        
+        function downloadIcons() {
+            // Create 192x192 icon
+            const canvas192 = document.getElementById('canvas192');
+            const link192 = document.createElement('a');
+            link192.download = 'icon-192x192.png';
+            link192.href = canvas192.toDataURL();
+            link192.click();
+            
+            // Create 512x512 icon  
+            const canvas512 = document.getElementById('canvas512');
+            const link512 = document.createElement('a');
+            link512.download = 'icon-512x512.png';
+            link512.href = canvas512.toDataURL();
+            link512.click();
+            
+            document.getElementById('status').textContent = 'Icons downloaded! Replace the files in /public/';
+        }
+        
+        // Generate icons when page loads
+        window.onload = function() {
+            createIcon(document.getElementById('canvas192'), 192);
+            createIcon(document.getElementById('canvas512'), 512);
+            document.getElementById('status').textContent = 'Icons generated! Click download to save them.';
+        };
+    </script>
+</body>
+</html>

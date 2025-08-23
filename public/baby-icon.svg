@@ -1,0 +1,18 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="256" fill="#3b82f6"/>
+  
+  <!-- White background for content -->
+  <circle cx="256" cy="256" r="200" fill="white"/>
+  
+  <!-- Baby bottle icon -->
+  <path d="M200 180 h80 v20 h-10 v100 c0 20 -15 35 -35 35 h-10 c-20 0 -35 -15 -35 -35 v-100 h-10 z" fill="#3b82f6"/>
+  <rect x="210" y="160" width="60" height="20" rx="10" fill="#94a3b8"/>
+  
+  <!-- Milk level -->
+  <rect x="210" y="220" width="60" height="60" fill="#e0f2fe"/>
+  
+  <!-- Text -->
+  <text x="256" y="380" text-anchor="middle" fill="#3b82f6" font-family="Arial, sans-serif" font-size="36" font-weight="bold">Baby</text>
+  <text x="256" y="420" text-anchor="middle" fill="#3b82f6" font-family="Arial, sans-serif" font-size="36" font-weight="bold">Tracker</text>
+</svg>

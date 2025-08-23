@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#3b82f6">
+    <title>PWA Debug - Baby Tracker</title>
+    <link rel="manifest" href="/manifest.json">
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; margin: 5px; cursor: pointer; }
+        #installBtn { display: none; background: #28a745; }
+        .debug-info { font-family: monospace; font-size: 12px; background: #f8f9fa; padding: 10px; border-radius: 3px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🔧 PWA Debug Tool - Baby Tracker</h1>
+    
+    <div id="status"></div>
+    
+    <button id="installBtn">📱 Install PWA</button>
+    <button onclick="runDiagnostics()">🔍 Run Diagnostics</button>
+    <button onclick="clearCache()">🗑️ Clear Cache</button>
+    
+    <div id="results"></div>
+    
+    <h3>Manual Chrome PWA Check:</h3>
+    <ol>
+        <li>Open Chrome DevTools (F12)</li>
+        <li>Go to "Application" tab</li>
+        <li>Check "Manifest" section for errors</li>
+        <li>Check "Service Workers" section</li>
+        <li>Look for install prompt in address bar</li>
+        <li>Check console for PWA-related messages</li>
+    </ol>
+
+    <script>
+        let deferredPrompt;
+        
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = `<strong>${type.toUpperCase()}:</strong> ${message}`;
+            results.appendChild(div);
+            console.log(message);
+        }
+        
+        function updateStatus(message) {
+            document.getElementById('status').innerHTML = `<div class="status info">${message}</div>`;
+        }
+        
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(registration => {
+                    log('✅ Service Worker registered successfully', 'success');
+                    log(`Scope: ${registration.scope}`, 'info');
+                    updateStatus('Service Worker: ✅ Registered');
+                })
+                .catch(error => {
+                    log('❌ Service Worker registration failed: ' + error.message, 'error');
+                    updateStatus('Service Worker: ❌ Failed');
+                });
+        } else {
+            log('❌ Service Workers not supported', 'error');
+            updateStatus('Service Worker: ❌ Not Supported');
+        }
+        
+        // Handle install prompt
+        window.addEventListener('beforeinstallprompt', (e) => {
+            log('📱 PWA install prompt available!', 'success');
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('installBtn').style.display = 'inline-block';
+            updateStatus('PWA Install: ✅ Available');
+        });
+        
+        // Handle successful install
+        window.addEventListener('appinstalled', (e) => {
+            log('🎉 PWA was installed successfully!', 'success');
+            deferredPrompt = null;
+            document.getElementById('installBtn').style.display = 'none';
+            updateStatus('PWA Install: ✅ Installed');
+        });
+        
+        // Install button click
+        document.getElementById('installBtn').addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                log(`Install prompt result: ${outcome}`, outcome === 'accepted' ? 'success' : 'info');
+                deferredPrompt = null;
+                if (outcome === 'dismissed') {
+                    document.getElementById('installBtn').style.display = 'none';
+                }
+            }
+        });
+        
+        async function runDiagnostics() {
+            document.getElementById('results').innerHTML = '';
+            log('🔍 Starting PWA diagnostics...', 'info');
+            
+            // Check manifest
+            try {
+                const manifestResponse = await fetch('/manifest.json');
+                if (manifestResponse.ok) {
+                    const manifest = await manifestResponse.json();
+                    log('✅ Manifest loaded successfully', 'success');
+                    log(`App name: ${manifest.name}`, 'info');
+                    log(`Start URL: ${manifest.start_url}`, 'info');
+                    log(`Display: ${manifest.display}`, 'info');
+                    log(`Icons: ${manifest.icons?.length || 0} defined`, 'info');
+                } else {
+                    log('❌ Manifest load failed: ' + manifestResponse.status, 'error');
+                }
+            } catch (e) {
+                log('❌ Manifest error: ' + e.message, 'error');
+            }
+            
+            // Check icons
+            const iconSizes = ['192x192', '512x512'];
+            for (const size of iconSizes) {
+                try {
+                    const iconResponse = await fetch(`/icon-${size}.png`);
+                    if (iconResponse.ok) {
+                        const blob = await iconResponse.blob();
+                        log(`✅ Icon ${size}: ${blob.size} bytes`, 'success');
+                    } else {
+                        log(`❌ Icon ${size}: HTTP ${iconResponse.status}`, 'error');
+                    }
+                } catch (e) {
+                    log(`❌ Icon ${size}: ${e.message}`, 'error');
+                }
+            }
+            
+            // Check HTTPS/localhost
+            const isSecure = location.protocol === 'https:' || location.hostname === 'localhost';
+            log(`${isSecure ? '✅' : '❌'} Secure context: ${location.protocol}//${location.hostname}`, 
+                isSecure ? 'success' : 'error');
+            
+            // Check if already installed
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+            log(`${isStandalone ? '✅' : 'ℹ️'} Standalone mode: ${isStandalone}`, 
+                isStandalone ? 'success' : 'info');
+            
+            // Check installability
+            log(`Install prompt available: ${deferredPrompt ? '✅ Yes' : '❌ No'}`, 
+                deferredPrompt ? 'success' : 'error');
+                
+            // Browser info
+            log(`Browser: ${navigator.userAgent}`, 'info');
+            
+            log('🏁 Diagnostics complete!', 'info');
+        }
+        
+        async function clearCache() {
+            if ('caches' in window) {
+                try {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(cacheNames.map(name => caches.delete(name)));
+                    log(`✅ Cleared ${cacheNames.length} cache(s)`, 'success');
+                } catch (e) {
+                    log('❌ Cache clear failed: ' + e.message, 'error');
+                }
+            } else {
+                log('❌ Cache API not supported', 'error');
+            }
+        }
+        
+        // Run diagnostics on load
+        window.addEventListener('load', runDiagnostics);
+    </script>
+</body>
+</html>

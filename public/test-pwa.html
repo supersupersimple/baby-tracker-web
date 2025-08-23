@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PWA Test - Baby Tracker</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; }
+        .test-result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .pass { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .fail { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; margin: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .status { font-weight: bold; }
+        #results { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Baby Tracker PWA Test Suite</h1>
+    <p>This page tests the Progressive Web App functionality of Baby Tracker.</p>
+    
+    <button onclick="runTests()">🚀 Run PWA Tests</button>
+    <button onclick="testOfflineStorage()">💾 Test Offline Storage</button>
+    <button onclick="clearResults()">🧹 Clear Results</button>
+    
+    <div id="results"></div>
+    
+    <script>
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = `<span class="status">${type.toUpperCase()}:</span> ${message}`;
+            results.appendChild(div);
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+        
+        async function runTests() {
+            clearResults();
+            addResult('Starting PWA tests...', 'info');
+            
+            // Test 1: Service Worker
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registration = await navigator.serviceWorker.register('/sw.js');
+                    addResult('Service Worker registered successfully', 'pass');
+                    addResult(`SW scope: ${registration.scope}`, 'info');
+                } catch (error) {
+                    addResult(`Service Worker registration failed: ${error.message}`, 'fail');
+                }
+            } else {
+                addResult('Service Workers not supported', 'fail');
+            }
+            
+            // Test 2: Manifest
+            try {
+                const response = await fetch('/manifest.json');
+                if (response.ok) {
+                    const manifest = await response.json();
+                    addResult(`Manifest loaded: ${manifest.name}`, 'pass');
+                    addResult(`Start URL: ${manifest.start_url}`, 'info');
+                    addResult(`Display mode: ${manifest.display}`, 'info');
+                } else {
+                    addResult(`Manifest fetch failed: ${response.status}`, 'fail');
+                }
+            } catch (error) {
+                addResult(`Manifest test failed: ${error.message}`, 'fail');
+            }
+            
+            // Test 3: Cache API
+            if ('caches' in window) {
+                addResult('Cache API supported', 'pass');
+                try {
+                    const cacheNames = await caches.keys();
+                    addResult(`Found ${cacheNames.length} cache(s): ${cacheNames.join(', ') || 'none'}`, 'info');
+                } catch (error) {
+                    addResult(`Cache enumeration failed: ${error.message}`, 'fail');
+                }
+            } else {
+                addResult('Cache API not supported', 'fail');
+            }
+            
+            // Test 4: Local Storage
+            try {
+                localStorage.setItem('pwa-test', 'working');
+                const value = localStorage.getItem('pwa-test');
+                if (value === 'working') {
+                    addResult('Local Storage working', 'pass');
+                    localStorage.removeItem('pwa-test');
+                } else {
+                    addResult('Local Storage test failed', 'fail');
+                }
+            } catch (error) {
+                addResult(`Local Storage error: ${error.message}`, 'fail');
+            }
+            
+            // Test 5: Online/Offline detection
+            addResult(`Navigator online: ${navigator.onLine}`, 'info');
+            
+            // Test 6: App installation
+            if (window.matchMedia('(display-mode: standalone)').matches || 
+                window.navigator.standalone === true) {
+                addResult('App is running in standalone mode (installed)', 'pass');
+            } else {
+                addResult('App is running in browser mode', 'info');
+            }
+            
+            // Test 7: Push notifications support
+            if ('Notification' in window) {
+                addResult(`Notifications supported. Permission: ${Notification.permission}`, 'info');
+            } else {
+                addResult('Notifications not supported', 'info');
+            }
+            
+            addResult('PWA tests completed!', 'info');
+        }
+        
+        function testOfflineStorage() {
+            clearResults();
+            addResult('Testing Baby Tracker offline storage...', 'info');
+            
+            try {
+                // Check if baby tracker storage exists
+                const babyTrackerData = localStorage.getItem('baby-tracker-activities');
+                if (babyTrackerData) {
+                    const data = JSON.parse(babyTrackerData);
+                    addResult(`Found Baby Tracker data with ${data.activities?.length || 0} activities`, 'pass');
+                    
+                    if (data.metadata) {
+                        addResult(`Schema version: ${data.metadata.schemaVersion}`, 'info');
+                        addResult(`Last sync: ${data.metadata.lastSyncTime || 'Never'}`, 'info');
+                    }
+                } else {
+                    addResult('No Baby Tracker data found in local storage', 'info');
+                }
+                
+                // Test ULID generation (if available)
+                if (typeof window.ulid === 'function') {
+                    const testId = window.ulid();
+                    addResult(`ULID generation test: ${testId}`, 'pass');
+                } else {
+                    addResult('ULID library not available in test environment', 'info');
+                }
+                
+            } catch (error) {
+                addResult(`Offline storage test failed: ${error.message}`, 'fail');
+            }
+        }
+        
+        // Auto-run tests when page loads
+        document.addEventListener('DOMContentLoaded', runTests);
+    </script>
+</body>
+</html>
