@@ -1,0 +1,44 @@
+{
+  "timestamp": "2025-08-24T07:36:35.830Z",
+  "testUrl": "http://localhost:3000",
+  "testType": "Code Structure Analysis",
+  "results": {
+    "totalTests": 40,
+    "passed": 40,
+    "failed": 0,
+    "issues": []
+  },
+  "activityTypes": {
+    "feeding": {
+      "subtypes": 4,
+      "hasValidation": true
+    },
+    "sleeping": {
+      "subtypes": 2,
+      "hasDirectAction": true
+    },
+    "diapering": {
+      "subtypes": 3,
+      "hasValidation": true
+    },
+    "growth": {
+      "subtypes": 3,
+      "hasMeasurements": true
+    },
+    "health": {
+      "subtypes": 3,
+      "hasMeasurements": true
+    },
+    "leisure": {
+      "subtypes": 3,
+      "hasValidation": true
+    }
+  },
+  "capabilities": {
+    "offlineSupport": true,
+    "backgroundSync": true,
+    "permissionSystem": true,
+    "duplicateDetection": true,
+    "pwaIntegration": true
+  }
+}

@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baby Tracker Activity Test</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            max-width: 800px; 
+            margin: 20px auto; 
+            padding: 20px; 
+            line-height: 1.6;
+        }
+        .test-section { 
+            margin: 20px 0; 
+            padding: 15px; 
+            border: 1px solid #ddd; 
+            border-radius: 8px; 
+        }
+        .test-result { 
+            padding: 10px; 
+            margin: 5px 0; 
+            border-radius: 4px; 
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        button { 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin: 5px; 
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        pre { 
+            background: #f8f9fa; 
+            padding: 10px; 
+            border-radius: 4px; 
+            overflow-x: auto; 
+            font-size: 12px; 
+        }
+        .progress { 
+            background: #e9ecef; 
+            border-radius: 4px; 
+            height: 20px; 
+            margin: 10px 0; 
+        }
+        .progress-bar { 
+            background: #28a745; 
+            height: 100%; 
+            border-radius: 4px; 
+            transition: width 0.3s; 
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Baby Tracker Activity Test Suite</h1>
+    <p>This tool tests all activity types to ensure they work correctly.</p>
+    
+    <div class="test-section">
+        <h2>Authentication Status</h2>
+        <div id="auth-status" class="test-result info">Checking authentication...</div>
+        <div id="baby-info" class="test-result info" style="display: none;"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Controls</h2>
+        <button onclick="runAllTests()" id="run-tests-btn">🚀 Run All Activity Tests</button>
+        <button onclick="clearResults()" id="clear-btn">🧹 Clear Results</button>
+        <button onclick="checkRecentActivities()" id="check-recent-btn">📋 Check Recent Activities</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Progress</h2>
+        <div class="progress">
+            <div class="progress-bar" id="progress-bar" style="width: 0%"></div>
+        </div>
+        <div id="progress-text">Ready to start testing...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Results</h2>
+        <div id="results-summary" class="test-result info" style="display: none;"></div>
+        <div id="results-container"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Recent Activities Check</h2>
+        <div id="recent-activities"></div>
+    </div>
+
+    <script>
+        let testResults = [];
+        let currentBaby = null;
+        
+        // Test activity definitions
+        const testActivities = [
+            {
+                name: 'Feeding - Bottle',
+                data: {
+                    type: 'FEEDING',
+                    subtype: 'BOTTLE',
+                    amount: 150,
+                    unit: 'MILLILITRES',
+                    category: 'FORMULA',
+                    details: 'Test bottle feeding'
+                }
+            },
+            {
+                name: 'Feeding - Meal',
+                data: {
+                    type: 'FEEDING',
+                    subtype: 'MEAL',
+                    details: 'Test meal - rice cereal'
+                }
+            },
+            {
+                name: 'Feeding - Left Breastfeeding',
+                data: {
+                    type: 'FEEDING',
+                    subtype: 'LEFT_BREAST',
+                    details: 'Test left breastfeeding'
+                }
+            },
+            {
+                name: 'Feeding - Right Breastfeeding',
+                data: {
+                    type: 'FEEDING',
+                    subtype: 'RIGHT_BREAST',
+                    details: 'Test right breastfeeding'
+                }
+            },
+            {
+                name: 'Diaper - Pee',
+                data: {
+                    type: 'DIAPERING',
+                    subtype: 'PEE',
+                    details: 'Test pee diaper'
+                }
+            },
+            {
+                name: 'Diaper - Poo',
+                data: {
+                    type: 'DIAPERING',
+                    subtype: 'POO',
+                    details: 'Test poo diaper'
+                }
+            },
+            {
+                name: 'Diaper - Mixed',
+                data: {
+                    type: 'DIAPERING',
+                    subtype: 'PEEPOO',
+                    details: 'Test mixed diaper'
+                }
+            },
+            {
+                name: 'Sleep',
+                data: {
+                    type: 'SLEEPING',
+                    subtype: 'SLEEP',
+                    details: 'Test sleep activity'
+                }
+            },
+            {
+                name: 'Growth - Weight',
+                data: {
+                    type: 'GROWTH',
+                    subtype: 'WEIGHT',
+                    amount: 5.2,
+                    unit: 'KILOGRAMS',
+                    details: 'Test weight measurement'
+                }
+            },
+            {
+                name: 'Growth - Height',
+                data: {
+                    type: 'GROWTH',
+                    subtype: 'HEIGHT',
+                    amount: 65,
+                    unit: 'CENTIMETERS',
+                    details: 'Test height measurement'
+                }
+            },
+            {
+                name: 'Health - Medicine',
+                data: {
+                    type: 'HEALTH',
+                    subtype: 'MEDICINE',
+                    details: 'Test medicine - vitamin D'
+                }
+            },
+            {
+                name: 'Health - Temperature',
+                data: {
+                    type: 'HEALTH',
+                    subtype: 'TEMPERATURE',
+                    amount: 37.2,
+                    unit: 'CELSIUS',
+                    details: 'Test temperature check'
+                }
+            },
+            {
+                name: 'Leisure - Tummy Time',
+                data: {
+                    type: 'LEISURE',
+                    subtype: 'TUMMYTIME',
+                    details: 'Test tummy time'
+                }
+            },
+            {
+                name: 'Leisure - Bath',
+                data: {
+                    type: 'LEISURE',
+                    subtype: 'BATH',
+                    details: 'Test bath time'
+                }
+            }
+        ];
+        
+        // Check authentication on page load
+        window.onload = checkAuth;
+        
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/auth/session');
+                const data = await response.json();
+                
+                const authStatus = document.getElementById('auth-status');
+                const babyInfo = document.getElementById('baby-info');
+                
+                if (data.user) {
+                    authStatus.className = 'test-result success';
+                    authStatus.textContent = `✅ Authenticated as: ${data.user.email}`;
+                    
+                    // Get babies
+                    const babiesResponse = await fetch('/api/user/babies');
+                    const babiesData = await babiesResponse.json();
+                    
+                    if (babiesData.success && babiesData.data.length > 0) {
+                        currentBaby = babiesData.data[0];
+                        babyInfo.style.display = 'block';
+                        babyInfo.className = 'test-result success';
+                        babyInfo.textContent = `👶 Testing with baby: ${currentBaby.babyName} (ID: ${currentBaby.id})`;
+                        
+                        document.getElementById('run-tests-btn').disabled = false;
+                    } else {
+                        babyInfo.style.display = 'block';
+                        babyInfo.className = 'test-result error';
+                        babyInfo.textContent = '❌ No babies found. Please create a baby first.';
+                    }
+                } else {
+                    authStatus.className = 'test-result error';
+                    authStatus.textContent = '❌ Not authenticated. Please login first.';
+                }
+            } catch (error) {
+                const authStatus = document.getElementById('auth-status');
+                authStatus.className = 'test-result error';
+                authStatus.textContent = `❌ Authentication check failed: ${error.message}`;
+            }
+        }
+        
+        async function runAllTests() {
+            if (!currentBaby) {
+                alert('❌ No baby available for testing. Please login and create a baby first.');
+                return;
+            }
+            
+            testResults = [];
+            document.getElementById('results-container').innerHTML = '';
+            document.getElementById('run-tests-btn').disabled = true;
+            document.getElementById('progress-text').textContent = 'Running tests...';
+            
+            for (let i = 0; i < testActivities.length; i++) {
+                const test = testActivities[i];
+                const progress = ((i) / testActivities.length) * 100;
+                document.getElementById('progress-bar').style.width = `${progress}%`;
+                document.getElementById('progress-text').textContent = `Testing ${i + 1}/${testActivities.length}: ${test.name}`;
+                
+                await runSingleTest(test, i + 1);
+                await new Promise(resolve => setTimeout(resolve, 200)); // Small delay
+            }
+            
+            document.getElementById('progress-bar').style.width = '100%';
+            document.getElementById('progress-text').textContent = 'All tests completed!';
+            document.getElementById('run-tests-btn').disabled = false;
+            
+            showSummary();
+        }
+        
+        async function runSingleTest(test, index) {
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'test-result';
+            resultDiv.innerHTML = `<strong>${index}. ${test.name}</strong>: Testing...`;
+            document.getElementById('results-container').appendChild(resultDiv);
+            
+            try {
+                const activityData = {
+                    babyId: currentBaby.id,
+                    fromDate: new Date().toISOString(),
+                    clientId: `test_${Date.now()}_${index}`,
+                    ...test.data
+                };
+                
+                const response = await fetch('/api/activities', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(activityData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    resultDiv.className = 'test-result success';
+                    resultDiv.innerHTML = `<strong>${index}. ${test.name}</strong>: ✅ SUCCESS (ID: ${result.data.id})`;
+                    testResults.push({ name: test.name, status: 'PASSED', id: result.data.id });
+                } else {
+                    resultDiv.className = 'test-result error';
+                    resultDiv.innerHTML = `<strong>${index}. ${test.name}</strong>: ❌ FAILED - ${result.error || 'Unknown error'}`;
+                    testResults.push({ name: test.name, status: 'FAILED', error: result.error });
+                }
+                
+            } catch (error) {
+                resultDiv.className = 'test-result error';
+                resultDiv.innerHTML = `<strong>${index}. ${test.name}</strong>: ❌ ERROR - ${error.message}`;
+                testResults.push({ name: test.name, status: 'ERROR', error: error.message });
+            }
+        }
+        
+        function showSummary() {
+            const passed = testResults.filter(r => r.status === 'PASSED').length;
+            const failed = testResults.filter(r => r.status !== 'PASSED').length;
+            const total = testResults.length;
+            
+            const summary = document.getElementById('results-summary');
+            summary.style.display = 'block';
+            summary.className = failed === 0 ? 'test-result success' : 'test-result info';
+            summary.innerHTML = `
+                <strong>📊 Test Results Summary:</strong><br>
+                Total: ${total} | Passed: ${passed} ✅ | Failed: ${failed} ${failed > 0 ? '❌' : ''}<br>
+                Success Rate: ${Math.round((passed / total) * 100)}%
+            `;
+        }
+        
+        async function checkRecentActivities() {
+            if (!currentBaby) {
+                alert('❌ No baby available. Please login first.');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/activities?babyId=${currentBaby.id}&page=1&limit=30`);
+                const data = await response.json();
+                
+                const container = document.getElementById('recent-activities');
+                
+                if (data.success) {
+                    const recentActivities = data.data.slice(0, 10); // Show last 10
+                    container.innerHTML = `
+                        <h3>✅ Recent Activities (Last 10 of ${data.data.length} total):</h3>
+                        <pre>${JSON.stringify(recentActivities.map(a => ({
+                            id: a.id,
+                            type: a.type,
+                            subtype: a.subtype,
+                            details: a.details,
+                            fromDate: a.fromDate
+                        })), null, 2)}</pre>
+                    `;
+                } else {
+                    container.innerHTML = `<div class="test-result error">❌ Failed to load recent activities: ${data.error}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('recent-activities').innerHTML = 
+                    `<div class="test-result error">❌ Error loading activities: ${error.message}</div>`;
+            }
+        }
+        
+        function clearResults() {
+            testResults = [];
+            document.getElementById('results-container').innerHTML = '';
+            document.getElementById('results-summary').style.display = 'none';
+            document.getElementById('recent-activities').innerHTML = '';
+            document.getElementById('progress-bar').style.width = '0%';
+            document.getElementById('progress-text').textContent = 'Ready to start testing...';
+        }
+    </script>
+</body>
+</html>

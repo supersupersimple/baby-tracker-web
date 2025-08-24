@@ -1,0 +1,13 @@
+{
+  "timestamp": "2025-08-24T07:35:05.812Z",
+  "testUrl": "http://localhost:3000",
+  "results": {
+    "totalTests": 0,
+    "passed": 0,
+    "failed": 0,
+    "issues": [
+      "Test execution error: Failed to launch the browser process!\n/home/bobo/.cache/puppeteer/chrome/linux-139.0.7258.138/chrome-linux64/chrome: error while loading shared libraries: libnspr4.so: cannot open shared object file: No such file or directory\n\n\nTROUBLESHOOTING: https://pptr.dev/troubleshooting\n"
+    ]
+  },
+  "screenshotDirectory": "/home/bobo/projects/baby-tracker-web/test-screenshots"
+}

@@ -1,9 +1,9 @@
 // Baby Tracker Service Worker
 // Provides offline functionality and caching for PWA
 
-const CACHE_NAME = 'baby-tracker-v1';
-const STATIC_CACHE_NAME = 'baby-tracker-static-v1';
-const DYNAMIC_CACHE_NAME = 'baby-tracker-dynamic-v1';
+const CACHE_NAME = 'baby-tracker-v2';
+const STATIC_CACHE_NAME = 'baby-tracker-static-v2';
+const DYNAMIC_CACHE_NAME = 'baby-tracker-dynamic-v2';
 
 // Assets to cache immediately
 const STATIC_ASSETS = [
@@ -21,7 +21,7 @@ const API_CACHE_ROUTES = [
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing service worker...');
+  console.log('[SW] Installing service worker v2 - DUPLICATE DETECTION FIX...');
   
   event.waitUntil(
     caches.open(STATIC_CACHE_NAME)
@@ -152,10 +152,18 @@ async function handleApiRequest(request) {
   }
 }
 
-// Cache First strategy for static assets
+// Cache First strategy for static assets (but skip JavaScript to avoid caching issues)
 async function handleStaticAssets(request) {
   try {
-    // Check cache first
+    const url = new URL(request.url);
+    
+    // Skip caching for JavaScript files to ensure we always get latest version
+    if (url.pathname.includes('.js') || url.pathname.includes('webpack')) {
+      console.log('[SW] Skipping cache for JS file:', url.pathname);
+      return fetch(request);
+    }
+    
+    // Check cache first for non-JS assets
     const cachedResponse = await caches.match(request);
     if (cachedResponse) {
       return cachedResponse;
