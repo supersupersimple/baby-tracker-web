@@ -239,6 +239,7 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('🚀 handleSubmit called', { selectedAction: selectedAction?.id, saving });
     setSaving(true);
 
     try {
@@ -287,12 +288,15 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
       activityData.details = formData.details || "";
 
       // 🚀 LOCAL-FIRST APPROACH: Store immediately to local storage
+      console.log('💾 About to store activity locally:', activityData);
       const localActivity = storeActivityLocally(activityData);
+      console.log('✅ Stored activity locally:', localActivity?.id);
       
       // Immediate UI feedback - user sees instant response
       setFloatingMessage("✅ Activity saved!");
       setTimeout(() => setFloatingMessage(""), 2000);
       setIsDialogOpen(false);
+      console.log('🔄 Calling onActivityAdded callback');
       if (onActivityAdded) onActivityAdded();
       
       // 🔄 BACKGROUND SYNC: Schedule background synchronization
@@ -314,11 +318,12 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
       }
       
     } catch (error) {
-      console.error('Error saving activity:', error);
+      console.error('❌ Error in handleSubmit:', error);
       setFloatingMessage("❌ Failed to save activity");
       setTimeout(() => setFloatingMessage(""), 3000);
       setIsDialogOpen(false);
     } finally {
+      console.log('🏁 handleSubmit finally block, setting saving to false');
       setSaving(false);
     }
   };

@@ -323,7 +323,13 @@ const getSubtypeLabel = (type, subtype) => {
       case "meal".toUpperCase(): return "Meal";
       case "left_breast".toUpperCase(): return "Left Breast";
       case "right_breast".toUpperCase(): return "Right Breast";
-      default: return subtype;
+      default: 
+        // 🔒 DATA VALIDATION: Don't show subtypes that don't belong to this activity type
+        if (["PEE", "POO", "PEEPOO"].includes(normalizedSubtype)) {
+          console.warn(`⚠️ Data integrity issue: FEEDING activity has DIAPERING subtype: ${subtype}`);
+          return null; // Don't display invalid subtype
+        }
+        return subtype;
     }
   }
   
@@ -360,7 +366,13 @@ const getSubtypeLabel = (type, subtype) => {
       case "PEEPOO": return "Pee & Poo";
       // Legacy support
       case "BOTH": return "Pee & Poo";
-      default: return subtype;
+      default: 
+        // 🔒 DATA VALIDATION: Don't show subtypes that don't belong to this activity type
+        if (["BOTTLE", "MEAL", "LEFT_BREAST", "RIGHT_BREAST", "BREAST_MILK", "FORMULA"].includes(normalizedSubtype)) {
+          console.warn(`⚠️ Data integrity issue: DIAPERING activity has FEEDING subtype: ${subtype}`);
+          return null; // Don't display invalid subtype
+        }
+        return subtype;
     }
   }
   
@@ -416,6 +428,8 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
 
   const fetchRecentActivities = async (reset = true) => {
     try {
+      console.log('🔄 fetchRecentActivities called with reset:', reset, 'selectedBaby:', selectedBaby?.id);
+      
       if (reset) {
         setLoading(true);
         setCurrentPage(1);
@@ -424,10 +438,25 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
       setError(null);
       
       // 🚀 LOCAL-FIRST: Always load from localStorage first with pagination
-      const localResult = getAllLocalActivities(selectedBaby?.id, 1, 100);
+      const localResult = getAllLocalActivities(selectedBaby?.id, 1, 30);
       const localActivities = localResult.activities || [];
       
+      console.log('🔄 Local storage result:', {
+        babyId: selectedBaby?.id,
+        activitiesCount: localActivities.length,
+        totalCount: localResult.totalCount,
+        hasMore: localResult.hasMore,
+        sampleActivities: localActivities.slice(0, 3).map(a => ({ 
+          id: a.id, 
+          type: a.type, 
+          subtype: a.subtype, 
+          fromDate: a.fromDate,
+          status: a.status
+        }))
+      });
+      
       if (reset) {
+        console.log('🔄 Setting activities to:', localActivities.length, 'activities');
         setActivities(localActivities);
         setTotalCount(localResult.totalCount || 0);
         setHasMore(localResult.hasMore || false);
@@ -441,7 +470,7 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
       if (isOnline()) {
         try {
           // Sync remote data to local storage (first page only for initial load)
-          const syncResult = await syncRemoteToLocal(selectedBaby, 1, 100);
+          const syncResult = await syncRemoteToLocal(selectedBaby, 1, 30);
           
           if (syncResult.success && syncResult.pagination) {
             setTotalCount(syncResult.pagination.totalCount);
@@ -449,7 +478,7 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
           }
           
           // Reload from localStorage after sync
-          const updatedLocalResult = getAllLocalActivities(selectedBaby?.id, 1, 100);
+          const updatedLocalResult = getAllLocalActivities(selectedBaby?.id, 1, 30);
           const updatedLocalActivities = updatedLocalResult.activities || [];
           
           if (reset) {
@@ -476,6 +505,40 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
     fetchRecentActivities();
   }, [refreshTrigger, selectedBaby]);
 
+  // Listen for localStorage changes to refresh activities when new ones are added by QuickActions
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'baby-tracker-activities' || e.storageArea === localStorage) {
+        console.log('🔄 Detected local storage change via storage event, refreshing activities...');
+        console.log('🔄 Storage event details:', { key: e.key, oldValue: e.oldValue?.length, newValue: e.newValue?.length });
+        // Small delay to ensure storage operations are complete
+        setTimeout(() => {
+          fetchRecentActivities();
+        }, 100);
+      }
+    };
+
+    // Listen for storage events (cross-tab) and custom events (same-tab)
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Custom event for same-tab localStorage changes
+    const handleCustomStorageChange = (e) => {
+      console.log('🔄 Detected custom storage change event, refreshing activities...', e.detail);
+      console.log('🔄 Current selectedBaby:', selectedBaby);
+      setTimeout(() => {
+        console.log('🔄 About to call fetchRecentActivities...');
+        fetchRecentActivities();
+      }, 100);
+    };
+    
+    window.addEventListener('localStorageChanged', handleCustomStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('localStorageChanged', handleCustomStorageChange);
+    };
+  }, [selectedBaby]);
+
   const loadMoreActivities = async () => {
     if (!hasMore || loadingMore) {
       return;
@@ -486,7 +549,7 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
       const nextPage = currentPage + 1;
       
       // Load next page from local storage first
-      const localResult = getAllLocalActivities(selectedBaby?.id, nextPage, 100);
+      const localResult = getAllLocalActivities(selectedBaby?.id, nextPage, 30);
       const newActivities = localResult.activities || [];
       
       if (newActivities.length > 0) {
@@ -499,14 +562,14 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
       // Background sync if online (don't wait for it)
       if (isOnline()) {
         try {
-          await syncRemoteToLocal(selectedBaby, nextPage, 100);
+          await syncRemoteToLocal(selectedBaby, nextPage, 30);
           // After sync, refresh the page data to get any new synced items
-          const refreshedResult = getAllLocalActivities(selectedBaby?.id, nextPage, 100);
+          const refreshedResult = getAllLocalActivities(selectedBaby?.id, nextPage, 30);
           if (refreshedResult.activities && refreshedResult.activities.length !== newActivities.length) {
             // Update if sync brought new data
             setActivities(prev => {
-              const existingPage = prev.slice(0, (nextPage - 1) * 100);
-              const allNewPages = getAllLocalActivities(selectedBaby?.id, 1, nextPage * 100).activities || [];
+              const existingPage = prev.slice(0, (nextPage - 1) * 30);
+              const allNewPages = getAllLocalActivities(selectedBaby?.id, 1, nextPage * 30).activities || [];
               return allNewPages;
             });
           }
@@ -626,7 +689,7 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
       
       if (updatedActivity) {
         // Refresh the activities list immediately from local storage (maintain current pagination)
-        const localResult = getAllLocalActivities(selectedBaby?.id, 1, currentPage * 100);
+        const localResult = getAllLocalActivities(selectedBaby?.id, 1, currentPage * 30);
         setActivities(localResult.activities || []);
         setTotalCount(localResult.totalCount || 0);
         setHasMore(localResult.hasMore || false);
@@ -712,7 +775,7 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
         removeLocalActivity(localId);
         
         // Refresh from local storage immediately (maintain current pagination)
-        const localResult = getAllLocalActivities(selectedBaby?.id, 1, currentPage * 100);
+        const localResult = getAllLocalActivities(selectedBaby?.id, 1, currentPage * 30);
         setActivities(localResult.activities || []);
         setTotalCount(localResult.totalCount || 0);
         setHasMore(localResult.hasMore || false);
@@ -896,7 +959,13 @@ export default function RecentActivities({ refreshTrigger, selectedBaby }) {
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         <h4 className={`font-medium text-base ${display.color} activity-text`}>
-                          {display.label}{activity.subtype && `(${getSubtypeLabel(activity.type, activity.subtype)})`}
+                          {display.label}{(() => {
+                            if (activity.subtype) {
+                              const subtypeLabel = getSubtypeLabel(activity.type, activity.subtype);
+                              return subtypeLabel ? `(${subtypeLabel})` : '';
+                            }
+                            return '';
+                          })()}
                         </h4>
                         {/* 🔥 NEW: Creator indicator */}
                         {getCreatorIcon(activity, session?.user?.email)}
