@@ -10,7 +10,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
-import { manualSyncActivities, isOnline } from "@/lib/offline-storage";
+import { manualSyncActivities, isOnline, clearBabyLocalData } from "@/lib/offline-storage";
 import { CompactSyncStatus } from "@/components/SyncStatusIndicator";
 import { BatchSyncButton } from "@/components/BatchSyncButton";
 import { initSyncService, getSyncService } from "@/lib/sync-service";
@@ -470,6 +470,97 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
     }
   };
 
+  const handleDeleteBaby = async () => {
+    if (!selectedBaby) {
+      setMessage("❌ Please select a baby first");
+      setTimeout(() => setMessage(""), 5000);
+      return;
+    }
+
+    // Double-check ownership (frontend verification)
+    if (!selectedBaby.isOwner || selectedBaby.role !== 'ADMIN') {
+      console.log(`Delete denied: User is not owner of baby ${selectedBaby.babyName}. isOwner: ${selectedBaby.isOwner}, role: ${selectedBaby.role}`);
+      setMessage("❌ Only baby owners can delete babies. You have view/edit access only.");
+      setTimeout(() => setMessage(""), 5000);
+      return;
+    }
+
+    // Strong confirmation dialog
+    const confirmed = window.confirm(
+      `⚠️ DELETE BABY: ${selectedBaby.babyName}\n\n` +
+      `This will PERMANENTLY delete:\n` +
+      `• Baby profile and information\n` +
+      `• ALL activity records (feeding, sleeping, etc.)\n` +
+      `• ALL sharing permissions (BabyAccess records)\n` +
+      `• ALL local offline data\n` +
+      `• Shared access for other family members\n\n` +
+      `⚠️ THIS CANNOT BE UNDONE!\n\n` +
+      `Only the baby owner can perform this action.\n` +
+      `Click OK to proceed with name confirmation.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    // Double confirmation with baby name
+    const babyNameConfirm = window.prompt(
+      `To confirm deletion, type the baby's name exactly: "${selectedBaby.babyName}"`
+    );
+
+    if (babyNameConfirm !== selectedBaby.babyName) {
+      setMessage("❌ Baby name did not match. Deletion cancelled.");
+      setTimeout(() => setMessage(""), 5000);
+      return;
+    }
+
+    setLoading(true);
+    setMessage("🗑️ Deleting baby and all records...");
+    setShowMenu(false);
+
+    try {
+      // Delete from server
+      const response = await fetch(`/api/babies/${selectedBaby.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        // Clear local storage for this baby
+        const localResult = clearBabyLocalData(selectedBaby.id);
+        
+        console.log('Baby deletion completed:', {
+          babyName: selectedBaby.babyName,
+          babyId: selectedBaby.id,
+          serverResult: result,
+          localCleanup: localResult
+        });
+        
+        const totalDeleted = (result.deletedCounts?.activities || 0) + (localResult?.removedCount || 0);
+        setMessage(`✅ ${selectedBaby.babyName} deleted: ${result.deletedCounts?.activities || 0} server activities, ${localResult?.removedCount || 0} local activities, ${result.deletedCounts?.accesses || 0} access permissions removed`);
+        
+        // Refresh baby list and reset selection
+        await fetchUserBabies();
+        onBabyChange(null);
+        
+        setTimeout(() => {
+          window.location.reload();
+        }, 3000);
+      } else {
+        console.error('Baby deletion failed:', result);
+        setMessage(`❌ Failed to delete baby: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error deleting baby:', error);
+      setMessage(`❌ Failed to delete baby: ${error.message}`);
+    } finally {
+      setLoading(false);
+      setTimeout(() => setMessage(""), 10000);
+    }
+  };
+
   if (!session) {
     return (
       <nav className="bg-white shadow-sm border-b border-gray-200">
@@ -624,6 +715,22 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
                             <div className="text-left">
                               <div className="font-medium text-base">Share Baby</div>
                               <div className="text-sm text-gray-500">Invite family members</div>
+                            </div>
+                          </button>
+                        )}
+
+                        {selectedBaby?.isOwner && (
+                          <button
+                            onClick={handleDeleteBaby}
+                            className="flex items-center w-full px-5 py-4 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                            disabled={loading}
+                          >
+                            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center mr-4">
+                              <span className="text-red-600">🗑️</span>
+                            </div>
+                            <div className="text-left">
+                              <div className="font-medium text-base">{loading ? 'Deleting...' : 'Delete Baby'}</div>
+                              <div className="text-sm text-red-400">Permanently remove all data</div>
                             </div>
                           </button>
                         )}
