@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Layout Test - Baby Tracker</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .viewport-frame {
+            border: 2px solid #ddd;
+            border-radius: 20px;
+            overflow: hidden;
+            margin: 10px 0;
+            background: white;
+        }
+        iframe {
+            border: none;
+            display: block;
+        }
+        .device-label {
+            font-weight: bold;
+            margin-bottom: 10px;
+            padding: 5px 10px;
+            background: #e3f2fd;
+            border-radius: 5px;
+            display: inline-block;
+        }
+        .instructions {
+            background: #fff3e0;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #ff9800;
+        }
+    </style>
+</head>
+<body>
+    <h1>📱 Baby Tracker Mobile Layout Test</h1>
+    
+    <div class="instructions">
+        <h3>🧪 How to Test:</h3>
+        <ol>
+            <li><strong>Login first:</strong> Open the main app at <a href="http://localhost:3000" target="_blank">localhost:3000</a> and login with Google</li>
+            <li><strong>Check mobile views:</strong> Use the frames below to test different mobile sizes</li>
+            <li><strong>Test interactions:</strong> Click the user profile button (top right) to test dropdown menu</li>
+            <li><strong>Look for issues:</strong>
+                <ul>
+                    <li>Baby selector overlapping header</li>
+                    <li>Dropdown menu too narrow or cut off</li>
+                    <li>Text truncation issues</li>
+                    <li>Touch target sizes</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+
+    <div class="test-container">
+        <div class="device-label">📱 iPhone SE (375x667px)</div>
+        <div class="viewport-frame">
+            <iframe src="http://localhost:3000" width="375" height="400"></iframe>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <div class="device-label">📱 Samsung Galaxy S8 (360x740px)</div>
+        <div class="viewport-frame">
+            <iframe src="http://localhost:3000" width="360" height="400"></iframe>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <div class="device-label">📱 iPhone 12 Mini (390x844px)</div>
+        <div class="viewport-frame">
+            <iframe src="http://localhost:3000" width="390" height="400"></iframe>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h3>🛠 Quick DevTools Method:</h3>
+        <p>If the iframes don't work (authentication issues), use this method:</p>
+        <ol>
+            <li>Open <a href="http://localhost:3000" target="_blank">localhost:3000</a> in a new tab</li>
+            <li>Press <kbd>F12</kbd> or <kbd>Ctrl+Shift+I</kbd></li>
+            <li>Click the device toggle icon (📱) or press <kbd>Ctrl+Shift+M</kbd></li>
+            <li>Select "iPhone SE" or "Galaxy S8" from the device dropdown</li>
+            <li>Test the header layout and dropdown menu</li>
+        </ol>
+    </div>
+
+    <div class="test-container">
+        <h3>📋 Issues to Check:</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+                <h4>🎯 Baby Selector Issues:</h4>
+                <ul>
+                    <li>□ Selector height fits within header</li>
+                    <li>□ Baby name displays without truncation</li>
+                    <li>□ Age information visible</li>
+                    <li>□ No overlap with logo or user menu</li>
+                </ul>
+            </div>
+            <div>
+                <h4>📋 Dropdown Menu Issues:</h4>
+                <ul>
+                    <li>□ Menu fits within screen width</li>
+                    <li>□ All menu items are readable</li>
+                    <li>□ Icons and text properly aligned</li>
+                    <li>□ Touch targets are adequate (44px+)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Auto-refresh iframes every 5 seconds to catch updates
+        setInterval(() => {
+            const iframes = document.querySelectorAll('iframe');
+            // Only refresh if not interacting
+            if (document.activeElement.tagName !== 'IFRAME') {
+                iframes.forEach(iframe => {
+                    const src = iframe.src;
+                    iframe.src = '';
+                    iframe.src = src;
+                });
+            }
+        }, 10000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dropdown Menu Width Test - Baby Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Additional styles to match the app */
+        .mobile-frame {
+            width: 375px; /* iPhone SE width */
+            height: 667px; /* iPhone SE height */
+            border: 2px solid #333;
+            border-radius: 20px;
+            margin: 20px auto;
+            overflow: hidden;
+            position: relative;
+            background: white;
+        }
+        .test-section {
+            margin: 20px;
+            padding: 20px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+        .viewport-info {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #1f2937;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            z-index: 1000;
+        }
+        .measurement-ruler {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 20px;
+            background: linear-gradient(to right, #ef4444 0%, #ef4444 50%, transparent 50%);
+            background-size: 20px 100%;
+            opacity: 0.3;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="viewport-info">
+        Screen: <span id="screen-width"></span>px × <span id="screen-height"></span>px
+    </div>
+
+    <div class="container mx-auto p-4 max-w-6xl">
+        <h1 class="text-2xl font-bold mb-4">Dropdown Menu Width Analysis - Baby Tracker</h1>
+        
+        <div class="test-section">
+            <h2 class="text-lg font-semibold mb-2">Current Implementation Analysis</h2>
+            <p class="text-sm text-gray-600 mb-4">
+                Current dropdown classes: <code class="bg-gray-100 px-1 rounded">w-96 sm:w-[400px] lg:w-[420px]</code>
+            </p>
+            <ul class="text-sm space-y-1">
+                <li><strong>Mobile (default):</strong> w-96 = 384px</li>
+                <li><strong>Small screens (≥640px):</strong> w-[400px] = 400px</li>
+                <li><strong>Large screens (≥1024px):</strong> w-[420px] = 420px</li>
+                <li><strong>Max width constraint:</strong> max-w-[calc(100vw-0.5rem)] = viewport width - 8px</li>
+            </ul>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <!-- Mobile Frame Test -->
+            <div class="test-section">
+                <h3 class="font-semibold mb-2">iPhone SE (375px) Simulation</h3>
+                <div class="mobile-frame relative">
+                    <div class="measurement-ruler"></div>
+                    
+                    <!-- Mock Header -->
+                    <nav class="bg-white shadow-sm border-b border-gray-200">
+                        <div class="max-w-7xl mx-auto px-4">
+                            <div class="flex justify-between items-center h-16">
+                                <!-- Logo -->
+                                <div class="flex-shrink-0 w-16">
+                                    <div class="text-xs font-bold text-gray-900 leading-tight">
+                                        <div>Baby</div>
+                                        <div>Tracker</div>
+                                    </div>
+                                </div>
+
+                                <!-- Baby Selector (simplified) -->
+                                <div class="flex-1 min-w-0 max-w-none mx-2">
+                                    <div class="w-full bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg px-3 py-2 text-sm">
+                                        👶 Emma Johnson
+                                    </div>
+                                </div>
+
+                                <!-- Profile Button -->
+                                <div class="flex items-center space-x-1 flex-shrink-0">
+                                    <div class="relative">
+                                        <button id="mobile-trigger" class="flex items-center gap-1 p-1.5">
+                                            <div class="w-6 h-6 bg-blue-200 rounded-full flex items-center justify-center">
+                                                <span class="text-blue-600 text-xs">U</span>
+                                            </div>
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </button>
+
+                                        <!-- The Dropdown Menu - Current Implementation -->
+                                        <div id="mobile-dropdown" class="absolute right-0 mt-2 w-96 sm:w-[400px] lg:w-[420px] bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden max-w-[calc(100vw-0.5rem)] hidden">
+                                            <!-- User Header -->
+                                            <div class="px-5 py-4 bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-100">
+                                                <div class="flex items-center gap-3">
+                                                    <div class="w-10 h-10 bg-blue-200 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+                                                        <span class="text-blue-600 text-sm font-medium">U</span>
+                                                    </div>
+                                                    <div class="min-w-0">
+                                                        <p class="text-sm font-medium text-gray-900 truncate">Test User</p>
+                                                        <p class="text-xs text-gray-600 truncate">test@example.com</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="py-2">
+                                                <!-- Baby Management Section -->
+                                                <div class="px-3 py-1">
+                                                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Baby Management</h4>
+                                                </div>
+                                                
+                                                <button class="flex items-center w-full px-5 py-4 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                                                    <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-4">
+                                                        <span class="text-green-600 text-lg">➕</span>
+                                                    </div>
+                                                    <div class="text-left">
+                                                        <div class="font-medium text-base">New Baby</div>
+                                                        <div class="text-sm text-gray-500">Create baby profile</div>
+                                                    </div>
+                                                </button>
+
+                                                <button class="flex items-center w-full px-5 py-4 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                                                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+                                                        <span class="text-blue-600 text-lg">✏️</span>
+                                                    </div>
+                                                    <div class="text-left">
+                                                        <div class="font-medium text-base">Edit Baby</div>
+                                                        <div class="text-sm text-gray-500">Update baby info</div>
+                                                    </div>
+                                                </button>
+
+                                                <!-- More menu items would be here... -->
+                                                <div class="border-t border-gray-100 mt-2 pt-2">
+                                                    <button class="flex items-center w-full px-5 py-4 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                                                        <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center mr-4">
+                                                            <span class="text-red-600">🚪</span>
+                                                        </div>
+                                                        <div class="text-left">
+                                                            <div class="font-medium text-base">Sign Out</div>
+                                                            <div class="text-xs text-red-400">End session</div>
+                                                        </div>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </nav>
+                    
+                    <div class="p-4">
+                        <button onclick="toggleMobileDropdown()" class="bg-blue-500 text-white px-4 py-2 rounded">
+                            Toggle Dropdown
+                        </button>
+                        <div class="mt-4 text-sm">
+                            <p><strong>Expected:</strong> Dropdown should fit within 375px viewport</p>
+                            <p><strong>Issue:</strong> w-96 (384px) + margins may exceed viewport</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Desktop Comparison -->
+            <div class="test-section">
+                <h3 class="font-semibold mb-2">Width Comparison Analysis</h3>
+                <div class="space-y-4">
+                    <div class="border rounded p-3">
+                        <h4 class="font-medium mb-2">Current Tailwind Classes Analysis</h4>
+                        <div class="text-sm space-y-2">
+                            <div class="flex justify-between">
+                                <span>w-96 (mobile default):</span>
+                                <span class="font-mono">384px</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>iPhone SE viewport:</span>
+                                <span class="font-mono">375px</span>
+                            </div>
+                            <div class="flex justify-between text-red-600">
+                                <span>Overflow:</span>
+                                <span class="font-mono">+9px</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border rounded p-3">
+                        <h4 class="font-medium mb-2">Max-width Constraint</h4>
+                        <div class="text-sm">
+                            <p><code>max-w-[calc(100vw-0.5rem)]</code></p>
+                            <p class="mt-1">= 375px - 8px = <span class="font-mono">367px</span></p>
+                            <p class="text-green-600 mt-1">✓ This should constrain the dropdown</p>
+                        </div>
+                    </div>
+
+                    <div class="border rounded p-3">
+                        <h4 class="font-medium mb-2">Recommended Fix Options</h4>
+                        <div class="text-sm space-y-2">
+                            <div>
+                                <strong>Option 1:</strong> <code>w-80 sm:w-96 lg:w-[420px]</code>
+                                <div class="text-gray-600">Mobile: 320px, Tablet: 384px, Desktop: 420px</div>
+                            </div>
+                            <div>
+                                <strong>Option 2:</strong> <code>w-[calc(100vw-2rem)] sm:w-96 lg:w-[420px]</code>
+                                <div class="text-gray-600">Mobile: viewport-32px, Tablet+: fixed widths</div>
+                            </div>
+                            <div>
+                                <strong>Option 3:</strong> <code>w-72 sm:w-80 lg:w-96</code>
+                                <div class="text-gray-600">Mobile: 288px, Tablet: 320px, Desktop: 384px</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-yellow-50 border border-yellow-200 rounded p-3">
+                        <h4 class="font-medium text-yellow-800 mb-2">Potential Issues</h4>
+                        <ul class="text-sm text-yellow-700 space-y-1">
+                            <li>• Dropdown extends beyond narrow screens</li>
+                            <li>• Menu items may appear cramped</li>
+                            <li>• Touch targets may be too small</li>
+                            <li>• Horizontal scrolling on mobile</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section mt-4">
+            <h3 class="font-semibold mb-2">Quick Testing Instructions</h3>
+            <ol class="text-sm space-y-2">
+                <li>1. Open Chrome DevTools (F12)</li>
+                <li>2. Click the device toggle button (Ctrl+Shift+M)</li>
+                <li>3. Select "iPhone SE" or set width to 375px</li>
+                <li>4. Navigate to http://localhost:3000</li>
+                <li>5. Click the user profile button in the top right</li>
+                <li>6. Observe if the dropdown extends beyond the viewport</li>
+                <li>7. Test on other mobile devices: Galaxy S8 (360px), iPhone 12 (390px)</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        // Update viewport info
+        function updateViewportInfo() {
+            document.getElementById('screen-width').textContent = window.innerWidth;
+            document.getElementById('screen-height').textContent = window.innerHeight;
+        }
+
+        function toggleMobileDropdown() {
+            const dropdown = document.getElementById('mobile-dropdown');
+            dropdown.classList.toggle('hidden');
+        }
+
+        // Update viewport info on load and resize
+        updateViewportInfo();
+        window.addEventListener('resize', updateViewportInfo);
+
+        // Show dropdown initially for testing
+        setTimeout(() => {
+            toggleMobileDropdown();
+        }, 1000);
+    </script>
+</body>
+</html>

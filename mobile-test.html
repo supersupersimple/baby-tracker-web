@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Layout Test - Baby Tracker</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .device-frame {
+            max-width: 400px;
+            margin: 0 auto 30px;
+            background: white;
+            border-radius: 20px;
+            padding: 20px 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            border: 8px solid #333;
+            position: relative;
+        }
+        
+        .device-name {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .test-frame {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+        }
+        
+        .instructions {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .issue-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .issue-list li {
+            background: #f8f9fa;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .issue-list li.fixed {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        
+        .checkboxes {
+            margin-top: 20px;
+        }
+        
+        .checkboxes label {
+            display: block;
+            margin: 10px 0;
+            cursor: pointer;
+        }
+        
+        .checkboxes input {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="instructions">
+        <h1>Mobile Layout Testing Guide</h1>
+        <p>Your Baby Tracker app is running at <strong>http://localhost:3000</strong></p>
+        <p>Follow these steps to test the mobile layout fixes:</p>
+        
+        <h3>Issues that have been fixed:</h3>
+        <ul class="issue-list">
+            <li class="fixed">
+                <strong>Baby Selector Width:</strong> Increased from 200px to 240px on mobile for less cramped appearance
+            </li>
+            <li class="fixed">
+                <strong>Dropdown Menu Width:</strong> Reduced from 288px to 256px on mobile to fit better on small screens
+            </li>
+            <li class="fixed">
+                <strong>Header Height:</strong> Added minimum height constraint to prevent content overflow
+            </li>
+            <li class="fixed">
+                <strong>Button Padding:</strong> Reduced mobile padding in baby selector for better fit
+            </li>
+            <li class="fixed">
+                <strong>Spacing:</strong> Improved spacing between header elements on mobile
+            </li>
+        </ul>
+        
+        <h3>Testing Checklist:</h3>
+        <div class="checkboxes">
+            <label>
+                <input type="checkbox"> Open Chrome DevTools (F12)
+            </label>
+            <label>
+                <input type="checkbox"> Click device mode icon (phone/tablet icon) or press Ctrl+Shift+M
+            </label>
+            <label>
+                <input type="checkbox"> Test iPhone SE (375px) - most restrictive modern device
+            </label>
+            <label>
+                <input type="checkbox"> Test Samsung Galaxy S8 (360px) - common Android size
+            </label>
+            <label>
+                <input type="checkbox"> Check baby selector - no text truncation with "..."
+            </label>
+            <label>
+                <input type="checkbox"> Click user profile button - dropdown opens properly
+            </label>
+            <label>
+                <input type="checkbox"> Verify dropdown doesn't extend beyond screen edges
+            </label>
+            <label>
+                <input type="checkbox"> Test baby selector dropdown if you have multiple babies
+            </label>
+            <label>
+                <input type="checkbox"> Check overall header spacing and alignment
+            </label>
+        </div>
+        
+        <h3>What to Look For:</h3>
+        <ul>
+            <li>✅ Baby name should display fully without truncation</li>
+            <li>✅ User profile dropdown should fit within screen width</li>
+            <li>✅ All buttons should be easily tappable (44px touch targets)</li>
+            <li>✅ No horizontal scrolling should be needed</li>
+            <li>✅ Elements shouldn't feel cramped or overlapping</li>
+        </ul>
+        
+        <p><strong>Navigate to:</strong> <a href="http://localhost:3000" target="_blank">http://localhost:3000</a></p>
+    </div>
+
+    <div class="device-frame">
+        <div class="device-name">iPhone SE (375×667)</div>
+        <iframe src="http://localhost:3000" class="test-frame" style="width: 375px;"></iframe>
+    </div>
+
+    <div class="device-frame">
+        <div class="device-name">Samsung Galaxy S8 (360×740)</div>
+        <iframe src="http://localhost:3000" class="test-frame" style="width: 360px;"></iframe>
+    </div>
+
+    <script>
+        // Add some interactive functionality
+        const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    this.parentElement.style.opacity = '0.7';
+                    this.parentElement.style.textDecoration = 'line-through';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

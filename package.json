@@ -10,6 +10,7 @@
     "db:seed": "node prisma/seed.js",
     "db:reset": "npx prisma migrate reset && npm run db:seed",
     "db:studio": "npx prisma studio",
+    "test:mobile": "node test-mobile-layout.js",
     "postinstall": "prisma generate",
     "vercel-build": "prisma generate && prisma db push --skip-generate && next build"
   },

@@ -14,6 +14,7 @@ import { manualSyncActivities, isOnline } from "@/lib/offline-storage";
 import { CompactSyncStatus } from "@/components/SyncStatusIndicator";
 import { BatchSyncButton } from "@/components/BatchSyncButton";
 import { initSyncService, getSyncService } from "@/lib/sync-service";
+import { EnhancedBabySelector } from "@/components/EnhancedBabySelector";
 
 export function AppHeader({ selectedBaby, onBabyChange }) {
   const { data: session } = useSession();
@@ -487,59 +488,48 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
     <>
       <nav className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo */}
-            <div className="flex-shrink-0">
-              <h1 className="text-xl font-bold text-gray-900">
-                Baby Tracker
-              </h1>
+          <div className="flex justify-between items-center h-16 sm:h-18">
+            {/* Compact Logo - Two lines on mobile */}
+            <div className="flex-shrink-0 w-16 sm:w-auto">
+              <div className="text-xs sm:text-base font-bold text-gray-900 leading-tight">
+                <div>Baby</div>
+                <div className="sm:inline">Tracker</div>
+              </div>
             </div>
 
-            {/* Baby Selector - Center */}
-            <div className="flex-1 max-w-xs sm:max-w-sm mx-2 sm:mx-8">
-              {babies.length > 0 ? (
-                <select
-                  value={selectedBaby?.id || ""}
-                  onChange={(e) => {
-                    const baby = babies.find(b => b.id === parseInt(e.target.value));
-                    onBabyChange(baby);
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-base bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {babies.map((baby) => (
-                    <option key={baby.id} value={baby.id}>
-                      {baby.babyName} ({baby.isOwner ? "Owner" : baby.role})
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <div className="text-center text-gray-500 text-base">
-                  No babies found
-                </div>
-              )}
+            {/* Enhanced Baby Selector - More space allocated */}
+            <div className="flex-1 min-w-0 max-w-none sm:max-w-sm mx-2 sm:mx-4">
+              <EnhancedBabySelector
+                babies={babies}
+                selectedBaby={selectedBaby}
+                onBabyChange={onBabyChange}
+                className="w-full"
+              />
             </div>
 
-            {/* Right Menu */}
-            <div className="flex items-center space-x-3">
-              {/* 🔥 NEW: Compact sync status in header */}
-              <CompactSyncStatus />
+            {/* Right Menu - More compact */}
+            <div className="flex items-center space-x-1 flex-shrink-0">
+              {/* Hide sync status on mobile for more space */}
+              <div className="hidden sm:block">
+                <CompactSyncStatus />
+              </div>
               
               <div className="relative">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowMenu(!showMenu)}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-1 p-1.5 sm:p-2"
                 >
                   {session.user?.image ? (
                     <img
                       src={session.user.image}
                       alt={session.user.name || "User"}
-                      className="w-8 h-8 rounded-full"
+                      className="w-6 h-6 sm:w-8 sm:h-8 rounded-full"
                     />
                   ) : (
-                    <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                      <span className="text-gray-600 text-sm">
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-300 rounded-full flex items-center justify-center">
+                      <span className="text-gray-600 text-xs sm:text-sm">
                         {session.user?.name?.[0] || session.user?.email?.[0] || 'U'}
                       </span>
                     </div>
@@ -557,11 +547,39 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
                       onClick={() => setShowMenu(false)}
                     ></div>
                     
-                    {/* Menu Items */}
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
-                      <div className="py-1">
-                        <div className="px-4 py-2 text-xs text-gray-500 border-b border-gray-100">
-                          {session.user?.name || session.user?.email}
+                    {/* Enhanced Menu Items */}
+                    <div className="absolute right-0 mt-2 w-80 sm:w-96 lg:w-[420px] bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden" style={{minWidth: '300px'}}>
+                      {/* User Header */}
+                      <div className="px-5 py-4 bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-100">
+                        <div className="flex items-center gap-3">
+                          {session.user?.image ? (
+                            <img
+                              src={session.user.image}
+                              alt={session.user.name || "User"}
+                              className="w-10 h-10 rounded-full border-2 border-white shadow-sm"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 bg-blue-200 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+                              <span className="text-blue-600 text-sm font-medium text-base">
+                                {session.user?.name?.[0] || session.user?.email?.[0] || 'U'}
+                              </span>
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-base text-gray-900 truncate">
+                              {session.user?.name || 'User'}
+                            </p>
+                            <p className="text-xs text-gray-600 truncate">
+                              {session.user?.email}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="py-2">
+                        {/* Baby Management Section */}
+                        <div className="px-3 py-1">
+                          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Baby Management</h4>
                         </div>
                         
                         <button
@@ -569,108 +587,153 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
                             setShowCreateDialog(true);
                             setShowMenu(false);
                           }}
-                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          className="flex items-center w-full px-5 py-4 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
                         >
-                          <span className="mr-2">➕</span>
-                          New Baby
+                          <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-4">
+                            <span className="text-green-600 text-lg">➕</span>
+                          </div>
+                          <div className="text-left">
+                            <div className="font-medium text-base text-base">New Baby</div>
+                            <div className="text-sm text-gray-500">Create baby profile</div>
+                          </div>
                         </button>
-
-                        {selectedBaby?.isOwner && (
-                          <button
-                            onClick={openShareDialog}
-                            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          >
-                            <span className="mr-2">👥</span>
-                            Share Baby
-                          </button>
-                        )}
 
                         {selectedBaby?.isOwner && (
                           <button
                             onClick={openEditDialog}
-                            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            className="flex items-center w-full px-5 py-4 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
                           >
-                            <span className="mr-2">✏️</span>
-                            Edit Baby
+                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+                              <span className="text-blue-600 text-lg">✏️</span>
+                            </div>
+                            <div className="text-left">
+                              <div className="font-medium text-base text-base">Edit Baby</div>
+                              <div className="text-sm text-gray-500">Update baby info</div>
+                            </div>
                           </button>
                         )}
 
-                        <div className="border-t border-gray-100 my-1"></div>
+                        {selectedBaby?.isOwner && (
+                          <button
+                            onClick={openShareDialog}
+                            className="flex items-center w-full px-5 py-4 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                          >
+                            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-4">
+                              <span className="text-purple-600">👥</span>
+                            </div>
+                            <div className="text-left">
+                              <div className="font-medium text-base">Share Baby</div>
+                              <div className="text-sm text-gray-500">Invite family members</div>
+                            </div>
+                          </button>
+                        )}
 
-                        {/* Import Data */}
-                        <label className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
-                          <span className="mr-2">📂</span>
-                          Import Data
-                          <input
-                            type="file"
-                            accept=".json"
-                            onChange={handleFileUpload}
+                        {/* Data Management Section */}
+                        <div className="border-t border-gray-100 mt-2 pt-2">
+                          <div className="px-3 py-1">
+                            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Data Management</h4>
+                          </div>
+
+                          <label className="flex items-center px-5 py-4 text-sm text-gray-700 hover:bg-yellow-50 hover:text-yellow-700 cursor-pointer transition-colors">
+                            <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center mr-4">
+                              <span className="text-yellow-600">📂</span>
+                            </div>
+                            <div className="text-left">
+                              <div className="font-medium text-base">Import Data</div>
+                              <div className="text-sm text-gray-500">Upload activity data</div>
+                            </div>
+                            <input
+                              type="file"
+                              accept=".json"
+                              onChange={handleFileUpload}
+                              disabled={importing}
+                              className="hidden"
+                            />
+                          </label>
+
+                          <button
+                            onClick={handleExportData}
+                            className="flex items-center w-full px-5 py-4 text-sm text-gray-700 hover:bg-yellow-50 hover:text-yellow-700 transition-colors"
                             disabled={importing}
-                            className="hidden"
-                          />
-                        </label>
+                          >
+                            <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center mr-4">
+                              <span className="text-yellow-600">📤</span>
+                            </div>
+                            <div className="text-left">
+                              <div className="font-medium text-base">Export Data</div>
+                              <div className="text-sm text-gray-500">Download backup</div>
+                            </div>
+                          </button>
+                        </div>
 
-                        {/* Export Data */}
-                        <button
-                          onClick={handleExportData}
-                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          disabled={importing}
-                        >
-                          <span className="mr-2">📤</span>
-                          Export Data
-                        </button>
+                        {/* Sync Section */}
+                        <div className="border-t border-gray-100 mt-2 pt-2">
+                          <div className="px-3 py-1">
+                            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Synchronization</h4>
+                          </div>
 
-                        {/* Manual Sync */}
-                        <button
-                          onClick={handleManualSync}
-                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          disabled={syncing || !selectedBaby}
-                        >
-                          <span className="mr-2">{syncing ? '🔄' : '🔄'}</span>
-                          {syncing ? 'Syncing...' : 'Manual Sync'}
-                        </button>
+                          <button
+                            onClick={() => {
+                              setShowBatchSyncDialog(true);
+                              setShowMenu(false);
+                            }}
+                            className="flex items-center w-full px-5 py-4 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors"
+                          >
+                            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-4">
+                              <span className="text-green-600">🔄</span>
+                            </div>
+                            <div className="text-left">
+                              <div className="font-medium text-base">Sync Activities</div>
+                              <div className="text-sm text-gray-500">Update with server</div>
+                            </div>
+                          </button>
 
-                        {/* Clear Local & Re-sync */}
-                        <button
-                          onClick={handleClearAndResync}
-                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          disabled={clearingAndResyncing || !selectedBaby || !isOnline()}
-                        >
-                          <span className="mr-2">{clearingAndResyncing ? '🧹' : '🗑️'}</span>
-                          {clearingAndResyncing ? 'Clearing & Re-syncing...' : 'Clear Local & Re-sync'}
-                        </button>
+                          <button
+                            onClick={handleClearAndResync}
+                            className="flex items-center w-full px-5 py-4 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 transition-colors"
+                            disabled={clearingAndResyncing || !selectedBaby || !isOnline()}
+                          >
+                            <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center mr-4">
+                              <span className="text-orange-600">{clearingAndResyncing ? '🧹' : '🗑️'}</span>
+                            </div>
+                            <div className="text-left">
+                              <div className="font-medium text-base">{clearingAndResyncing ? 'Clearing...' : 'Clear & Re-sync'}</div>
+                              <div className="text-sm text-gray-500">Reset local data</div>
+                            </div>
+                          </button>
+                        </div>
 
-                        <div className="border-t border-gray-100 my-1"></div>
+                        {/* Settings & Account */}
+                        <div className="border-t border-gray-100 mt-2 pt-2">
+                          <button
+                            onClick={openSettingsDialog}
+                            className="flex items-center w-full px-5 py-4 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center mr-4">
+                              <span className="text-gray-600">⚙️</span>
+                            </div>
+                            <div className="text-left">
+                              <div className="font-medium text-base">Settings</div>
+                              <div className="text-sm text-gray-500">App preferences</div>
+                            </div>
+                          </button>
 
-                        <button
-                          onClick={() => {
-                            setShowBatchSyncDialog(true);
-                            setShowMenu(false);
-                          }}
-                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        >
-                          <span className="mr-2">🔄</span>
-                          Sync Activities
-                        </button>
-                        
-                        <button
-                          onClick={openSettingsDialog}
-                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        >
-                          <span className="mr-2">⚙️</span>
-                          Settings
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            setShowMenu(false);
-                            window.location.href = '/api/auth/signout';
-                          }}
-                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        >
-                          <span className="mr-2">🚪</span>
-                          Sign Out
-                        </button>
+                          <button
+                            onClick={() => {
+                              setShowMenu(false);
+                              window.location.href = '/api/auth/signout';
+                            }}
+                            className="flex items-center w-full px-5 py-4 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                          >
+                            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center mr-4">
+                              <span className="text-red-600">🚪</span>
+                            </div>
+                            <div className="text-left">
+                              <div className="font-medium text-base">Sign Out</div>
+                              <div className="text-xs text-red-400">End session</div>
+                            </div>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </>
@@ -812,12 +875,12 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
             {/* Current shared users */}
             {sharedUsers.length > 0 && (
               <div>
-                <h4 className="font-medium mb-3">Shared with:</h4>
+                <h4 className="font-medium text-base mb-3">Shared with:</h4>
                 <div className="space-y-2 max-h-40 overflow-y-auto">
                   {sharedUsers.map((user) => (
                     <div key={user.accessId} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                       <div>
-                        <div className="font-medium">{user.name || user.email}</div>
+                        <div className="font-medium text-base">{user.name || user.email}</div>
                         <div className="text-sm text-gray-500">{user.email}</div>
                         <div className="text-xs text-gray-400">{user.role.toLowerCase()}</div>
                       </div>
@@ -944,8 +1007,8 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
           
           <div className="space-y-4">
             <div>
-              <h3 className="text-sm font-medium text-gray-900 mb-3">Quick Actions Visibility</h3>
-              <p className="text-xs text-gray-500 mb-4">Choose which quick action buttons to show on the home page:</p>
+              <h3 className="text-sm font-medium text-base text-gray-900 mb-3">Quick Actions Visibility</h3>
+              <p className="text-sm text-gray-500 mb-4">Choose which quick action buttons to show on the home page:</p>
               
               <div className="space-y-3">
                 <div className="flex items-center justify-between">

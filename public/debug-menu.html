@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Menu Width Issue</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .debug-box {
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .viewport-indicator {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: #333;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="viewport-indicator" id="viewport">Viewport: <span id="size"></span></div>
+    
+    <h1>🔍 Menu Width Debug Tool</h1>
+    
+    <div class="debug-box">
+        <h2>Current Menu Class Analysis</h2>
+        <p><strong>Classes applied:</strong> <code>w-80 sm:w-96 lg:w-[420px] max-w-[calc(100vw-1rem)]</code></p>
+        
+        <div class="space-y-4 mt-4">
+            <div>
+                <h3>Mobile (w-80) = 320px</h3>
+                <div class="w-80 bg-blue-100 p-4 border-2 border-blue-300 rounded-lg">
+                    <p>Width: 320px (80 × 4px = 320px)</p>
+                    <p>Should fit in: iPhone SE (375px), Galaxy S8 (360px)</p>
+                </div>
+            </div>
+            
+            <div>
+                <h3>Tablet (sm:w-96) = 384px</h3>
+                <div class="hidden sm:block w-96 bg-green-100 p-4 border-2 border-green-300 rounded-lg">
+                    <p>Width: 384px (96 × 4px = 384px)</p>
+                    <p>For screens ≥640px wide</p>
+                </div>
+            </div>
+            
+            <div>
+                <h3>Desktop (lg:w-[420px]) = 420px</h3>
+                <div class="hidden lg:block w-[420px] bg-purple-100 p-4 border-2 border-purple-300 rounded-lg">
+                    <p>Width: 420px</p>
+                    <p>For screens ≥1024px wide</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="debug-box">
+        <h2>Live Menu Simulation</h2>
+        <div class="relative inline-block">
+            <button id="menuButton" class="flex items-center gap-1 p-1.5 sm:p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                <div class="w-6 h-6 sm:w-8 sm:h-8 bg-blue-200 rounded-full flex items-center justify-center">
+                    <span class="text-blue-600 text-xs sm:text-sm font-medium">U</span>
+                </div>
+                <svg class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+            
+            <!-- Simulated Dropdown Menu -->
+            <div id="dropdown" class="hidden absolute right-0 mt-2 w-80 sm:w-96 lg:w-[420px] bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden max-w-[calc(100vw-1rem)]">
+                <!-- User Header -->
+                <div class="px-5 py-4 bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-100">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-blue-200 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+                            <span class="text-blue-600 text-sm font-medium text-base">U</span>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-base text-gray-900 truncate">Test User</p>
+                            <p class="text-sm text-gray-600 truncate">test@example.com</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="py-2">
+                    <!-- Baby Management Section -->
+                    <div class="px-3 py-1">
+                        <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Baby Management</h4>
+                    </div>
+                    
+                    <button class="flex items-center w-full px-5 py-4 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                        <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-4">
+                            <span class="text-green-600 text-lg">➕</span>
+                        </div>
+                        <div class="text-left">
+                            <div class="font-medium text-base text-base">New Baby</div>
+                            <div class="text-sm text-gray-500">Create baby profile</div>
+                        </div>
+                    </button>
+
+                    <button class="flex items-center w-full px-5 py-4 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                        <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+                            <span class="text-blue-600 text-lg">✏️</span>
+                        </div>
+                        <div class="text-left">
+                            <div class="font-medium text-base text-base">Edit Baby</div>
+                            <div class="text-sm text-gray-500">Update baby info</div>
+                        </div>
+                    </button>
+
+                    <!-- Data Management Section -->
+                    <div class="border-t border-gray-100 mt-2 pt-2">
+                        <div class="px-3 py-1">
+                            <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Data Management</h4>
+                        </div>
+
+                        <button class="flex items-center w-full px-5 py-4 text-sm text-gray-700 hover:bg-yellow-50 hover:text-yellow-700 transition-colors">
+                            <div class="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center mr-4">
+                                <span class="text-yellow-600 text-lg">📂</span>
+                            </div>
+                            <div class="text-left">
+                                <div class="font-medium text-base text-base">Import Data</div>
+                                <div class="text-sm text-gray-500">Upload activity data</div>
+                            </div>
+                        </button>
+
+                        <button class="flex items-center w-full px-5 py-4 text-sm text-gray-700 hover:bg-yellow-50 hover:text-yellow-700 transition-colors">
+                            <div class="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center mr-4">
+                                <span class="text-yellow-600 text-lg">📤</span>
+                            </div>
+                            <div class="text-left">
+                                <div class="font-medium text-base text-base">Export Data</div>
+                                <div class="text-sm text-gray-500">Download backup</div>
+                            </div>
+                        </button>
+                    </div>
+
+                    <!-- Settings & Account -->
+                    <div class="border-t border-gray-100 mt-2 pt-2">
+                        <button class="flex items-center w-full px-5 py-4 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                            <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center mr-4">
+                                <span class="text-red-600 text-lg">🚪</span>
+                            </div>
+                            <div class="text-left">
+                                <div class="font-medium text-base text-base">Sign Out</div>
+                                <div class="text-sm text-red-400">End session</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="debug-box">
+        <h2>Manual Testing Instructions</h2>
+        <ol class="list-decimal list-inside space-y-2">
+            <li>Click the simulated menu button above to see the dropdown</li>
+            <li>Resize your browser window to test different screen sizes</li>
+            <li>Check if menu fits properly at different widths</li>
+            <li>Compare with the actual app at <a href="http://localhost:3000" target="_blank" class="text-blue-600 underline">localhost:3000</a></li>
+        </ol>
+        
+        <div class="mt-4 p-4 bg-yellow-50 border-l-4 border-yellow-400">
+            <p><strong>💡 If the real app menu still looks narrow:</strong></p>
+            <ul class="list-disc list-inside mt-2 space-y-1">
+                <li>Try hard refresh (Ctrl+F5 or Cmd+Shift+R)</li>
+                <li>Clear browser cache</li>
+                <li>Check if there are CSS conflicts</li>
+                <li>Inspect element to see computed width</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Update viewport size indicator
+        function updateViewport() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            document.getElementById('size').textContent = `${width}x${height}px`;
+            
+            // Add breakpoint indicator
+            let breakpoint = '';
+            if (width < 640) breakpoint = ' (Mobile)';
+            else if (width < 1024) breakpoint = ' (Tablet)';
+            else breakpoint = ' (Desktop)';
+            
+            document.getElementById('size').textContent = `${width}x${height}px${breakpoint}`;
+        }
+        
+        updateViewport();
+        window.addEventListener('resize', updateViewport);
+        
+        // Toggle dropdown
+        document.getElementById('menuButton').addEventListener('click', function() {
+            const dropdown = document.getElementById('dropdown');
+            dropdown.classList.toggle('hidden');
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const button = document.getElementById('menuButton');
+            const dropdown = document.getElementById('dropdown');
+            
+            if (!button.contains(event.target) && !dropdown.contains(event.target)) {
+                dropdown.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
