@@ -525,11 +525,11 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
                     <img
                       src={session.user.image}
                       alt={session.user.name || "User"}
-                      className="w-6 h-6 sm:w-8 sm:h-8 rounded-full"
+                      className="w-6 h-6 sm:w-8 sm:h-8 rounded-full border border-gray-200"
                     />
                   ) : (
-                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                      <span className="text-gray-600 text-xs sm:text-sm">
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs sm:text-sm font-bold">
                         {session.user?.name?.[0] || session.user?.email?.[0] || 'U'}
                       </span>
                     </div>
