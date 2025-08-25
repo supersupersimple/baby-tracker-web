@@ -109,6 +109,8 @@ docs/example.json
 # Test files
 test-*.js
 test-*.json
+test-*.html
+public/test-*.html
 
 # Backup files
 *.backup

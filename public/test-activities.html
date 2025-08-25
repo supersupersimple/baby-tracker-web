@@ -95,6 +95,18 @@
     </div>
 
     <script>
+        // Security check - only allow in development environment
+        if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+            document.body.innerHTML = `
+                <div style="text-align: center; padding: 50px; color: #721c24; background: #f8d7da; border-radius: 8px; margin: 20px;">
+                    <h1>🚫 Access Denied</h1>
+                    <p>This testing tool is only available in development environment.</p>
+                    <p>Hostname: ${location.hostname}</p>
+                </div>
+            `;
+            throw new Error('Testing tool blocked in production');
+        }
+        
         let testResults = [];
         let currentBaby = null;
         
