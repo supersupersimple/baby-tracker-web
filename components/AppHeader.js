@@ -35,8 +35,13 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('quickActionsSettings');
       return saved ? JSON.parse(saved) : {
-        feeding: true,
+        'feeding-bottle': true,
+        'feeding-meal': true,
         sleeping: true,
+        'diapering-pee': true,
+        'diapering-poo': true,
+        // Keep main types for backward compatibility with "All Actions" dropdown
+        feeding: true,
         diapering: true,
         growth: true,
         health: true,
@@ -44,8 +49,13 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
       };
     }
     return {
-      feeding: true,
+      'feeding-bottle': true,
+      'feeding-meal': true,
       sleeping: true,
+      'diapering-pee': true,
+      'diapering-poo': true,
+      // Keep main types for backward compatibility with "All Actions" dropdown
+      feeding: true,
       diapering: true,
       growth: true,
       health: true,
@@ -1149,19 +1159,32 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
           
           <div className="space-y-4">
             <div>
-              <h3 className="text-sm font-medium text-base text-gray-900 mb-3">Quick Actions Visibility</h3>
+              <h3 className="text-sm font-medium text-base text-gray-900 mb-3">Quick Actions</h3>
               <p className="text-sm text-gray-500 mb-4">Choose which quick action buttons to show on the home page:</p>
               
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-lg">🍼</span>
-                    <span className="text-sm">Feeding</span>
+                    <span className="text-sm">Bottle Feeding</span>
                   </div>
                   <input
                     type="checkbox"
-                    checked={quickActionsSettings.feeding}
-                    onChange={(e) => handleQuickActionsSettingsChange('feeding', e.target.checked)}
+                    checked={quickActionsSettings['feeding-bottle']}
+                    onChange={(e) => handleQuickActionsSettingsChange('feeding-bottle', e.target.checked)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🥄</span>
+                    <span className="text-sm">Meal</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={quickActionsSettings['feeding-meal']}
+                    onChange={(e) => handleQuickActionsSettingsChange('feeding-meal', e.target.checked)}
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                 </div>
@@ -1181,54 +1204,74 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
                 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-lg">👶</span>
-                    <span className="text-sm">Diaper</span>
+                    <span className="text-lg">💧</span>
+                    <span className="text-sm">Pee</span>
                   </div>
                   <input
                     type="checkbox"
-                    checked={quickActionsSettings.diapering}
-                    onChange={(e) => handleQuickActionsSettingsChange('diapering', e.target.checked)}
+                    checked={quickActionsSettings['diapering-pee']}
+                    onChange={(e) => handleQuickActionsSettingsChange('diapering-pee', e.target.checked)}
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                 </div>
                 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-lg">📏</span>
-                    <span className="text-sm">Growth</span>
+                    <span className="text-lg">💩</span>
+                    <span className="text-sm">Poo</span>
                   </div>
                   <input
                     type="checkbox"
-                    checked={quickActionsSettings.growth}
-                    onChange={(e) => handleQuickActionsSettingsChange('growth', e.target.checked)}
+                    checked={quickActionsSettings['diapering-poo']}
+                    onChange={(e) => handleQuickActionsSettingsChange('diapering-poo', e.target.checked)}
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                 </div>
+              </div>
+              
+              <div className="mt-6">
+                <h4 className="text-sm font-medium text-gray-900 mb-2">All Actions Menu</h4>
+                <p className="text-xs text-gray-500 mb-3">These appear in the "All Actions" dropdown:</p>
                 
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">🏥</span>
-                    <span className="text-sm">Health</span>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">📏</span>
+                      <span className="text-xs">Growth</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={quickActionsSettings.growth}
+                      onChange={(e) => handleQuickActionsSettingsChange('growth', e.target.checked)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 scale-90"
+                    />
                   </div>
-                  <input
-                    type="checkbox"
-                    checked={quickActionsSettings.health}
-                    onChange={(e) => handleQuickActionsSettingsChange('health', e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">🎉</span>
-                    <span className="text-sm">Leisure</span>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">🏥</span>
+                      <span className="text-xs">Health</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={quickActionsSettings.health}
+                      onChange={(e) => handleQuickActionsSettingsChange('health', e.target.checked)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 scale-90"
+                    />
                   </div>
-                  <input
-                    type="checkbox"
-                    checked={quickActionsSettings.leisure}
-                    onChange={(e) => handleQuickActionsSettingsChange('leisure', e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">🎉</span>
+                      <span className="text-xs">Leisure</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={quickActionsSettings.leisure}
+                      onChange={(e) => handleQuickActionsSettingsChange('leisure', e.target.checked)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 scale-90"
+                    />
+                  </div>
                 </div>
               </div>
             </div>

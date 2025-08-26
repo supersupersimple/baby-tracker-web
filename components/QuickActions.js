@@ -8,8 +8,58 @@ import { Label } from "@/components/ui/label";
 import { storeActivityLocally, syncLocalActivities, isOnline, getAllLocalActivities } from "@/lib/offline-storage";
 import { useSession } from "next-auth/react";
 
-// Quick action data
+// Quick action data - subtype-based for direct access
 const quickActions = [
+  // Feeding subtypes
+  {
+    id: "feeding-bottle",
+    type: "feeding",
+    subtype: "BOTTLE",
+    icon: "🍼",
+    label: "Bottle",
+    color: "bg-blue-50 hover:bg-blue-100 text-blue-700",
+    borderColor: "border-blue-200 hover:border-blue-300"
+  },
+  {
+    id: "feeding-meal",
+    type: "feeding", 
+    subtype: "MEAL",
+    icon: "🥄",
+    label: "Meal",
+    color: "bg-blue-50 hover:bg-blue-100 text-blue-700",
+    borderColor: "border-blue-200 hover:border-blue-300"
+  },
+  {
+    id: "sleeping",
+    type: "sleeping",
+    subtype: "SLEEP",
+    icon: "😴", 
+    label: "Sleep",
+    color: "bg-purple-50 hover:bg-purple-100 text-purple-700",
+    borderColor: "border-purple-200 hover:border-purple-300"
+  },
+  {
+    id: "diapering-pee",
+    type: "diapering",
+    subtype: "PEE",
+    icon: "💧",
+    label: "Pee",
+    color: "bg-green-50 hover:bg-green-100 text-green-700", 
+    borderColor: "border-green-200 hover:border-green-300"
+  },
+  {
+    id: "diapering-poo",
+    type: "diapering",
+    subtype: "POO", 
+    icon: "💩",
+    label: "Poo",
+    color: "bg-green-50 hover:bg-green-100 text-green-700",
+    borderColor: "border-green-200 hover:border-green-300"
+  }
+];
+
+// All actions for the "All Actions" dropdown - type-based
+const allActions = [
   {
     id: "feeding",
     icon: "🍼",
@@ -70,7 +120,11 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
       const actionParam = urlParams.get('action');
       
       if (actionParam && selectedBaby) {
-        const action = quickActions.find(a => a.id === actionParam);
+        // Check both quickActions and allActions for backward compatibility
+        let action = quickActions.find(a => a.id === actionParam);
+        if (!action) {
+          action = allActions.find(a => a.id === actionParam);
+        }
         if (action) {
           // Delay to ensure component is fully loaded
           setTimeout(() => {
@@ -99,19 +153,23 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
     }
 
     // Handle sleep directly without dialog
-    if (action.id === "sleeping") {
+    if (action.id === "sleeping" || (action.type === "sleeping")) {
       await handleDirectSleepActivity();
       return;
     }
     
     setSelectedAction(action);
     
+    // Get the action type and subtype
+    const actionType = action.type || action.id; // support both new and old format
+    const preselectedSubtype = action.subtype || getDefaultSubtype(actionType);
+    
     // Get last bottle feeding amount if it's a feeding action
     let lastAmount = "";
     let lastUnit = "ML";
     
     // 🔥 NEW: Get last feeding amount from local storage first, then API
-    if (action.id === "feeding") {
+    if (actionType === "feeding") {
       try {
         // First try to get from local storage (faster)
         const localActivities = getAllLocalActivities();
@@ -170,7 +228,7 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
       endTime: "",
       amount: lastAmount,
       unit: lastUnit,
-      subtype: getDefaultSubtype(action.id),
+      subtype: preselectedSubtype,
       category: "FORMULA", // Default category for bottle feeding
       details: ""
     });
@@ -243,16 +301,19 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
     setSaving(true);
 
     try {
+      // Get the action type from the selected action
+      const actionType = selectedAction.type || selectedAction.id;
+      
       // For feeding activities (bottle, meal, breastfeeding), diaper activities, growth activities, health activities, and leisure activities, use current time as start time (when save is clicked)
-      const fromDate = (selectedAction.id === "feeding" && (formData.subtype === "BOTTLE" || formData.subtype === "MEAL" || formData.subtype === "LEFT_BREAST" || formData.subtype === "RIGHT_BREAST")) || selectedAction.id === "diapering" || selectedAction.id === "growth" || selectedAction.id === "health" || selectedAction.id === "leisure"
+      const fromDate = (actionType === "feeding" && (formData.subtype === "BOTTLE" || formData.subtype === "MEAL" || formData.subtype === "LEFT_BREAST" || formData.subtype === "RIGHT_BREAST")) || actionType === "diapering" || actionType === "growth" || actionType === "health" || actionType === "leisure"
         ? new Date().toISOString() 
         : formData.time;
 
       // Prepare activity data based on activity type
       let activityData = {
         babyId: selectedBaby.id,
-        type: selectedAction.id === "growth" ? "GROWTH" : (selectedAction.id === "health" ? "HEALTH" : (selectedAction.id === "leisure" ? "LEISURE" : selectedAction.id.toUpperCase())),
-        subtype: formData.subtype || getDefaultSubtype(selectedAction.id),
+        type: actionType === "growth" ? "GROWTH" : (actionType === "health" ? "HEALTH" : (actionType === "leisure" ? "LEISURE" : actionType.toUpperCase())),
+        subtype: formData.subtype || getDefaultSubtype(actionType),
         fromDate: fromDate,
         toDate: formData.endTime || null,
         unit: null,
@@ -262,17 +323,17 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
       };
 
       // Set unit, amount, and category based on activity type
-      if (selectedAction.id === "feeding" && formData.subtype === "BOTTLE") {
+      if (actionType === "feeding" && formData.subtype === "BOTTLE") {
         // Only bottle feeding should have unit/amount/category
         activityData.unit = formData.unit === "ML" ? "MILLILITRES" : (formData.unit === "OZ" ? "OUNCES" : "MILLILITRES");
         activityData.amount = formData.amount ? parseFloat(formData.amount) : null;
         activityData.category = formData.category || "FORMULA";
-      } else if (selectedAction.id === "growth") {
+      } else if (actionType === "growth") {
         // Growth activities have measurements
         activityData.unit = formData.subtype === "GROWTH_WEIGHT" ? "KILOGRAMS" : "CENTIMETERS";
         activityData.amount = formData.amount ? parseFloat(formData.amount) : null;
         activityData.category = "NONE";
-      } else if (selectedAction.id === "health" && formData.subtype === "HEALTH_TEMPERATURE") {
+      } else if (actionType === "health" && formData.subtype === "HEALTH_TEMPERATURE") {
         // Only temperature measurements have unit/amount
         activityData.unit = "CELSIUS";
         activityData.amount = formData.amount ? parseFloat(formData.amount) : null;
@@ -342,10 +403,12 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
   const renderDialogContent = () => {
     if (!selectedAction) return null;
 
+    const actionType = selectedAction.type || selectedAction.id;
+
     return (
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Time Input - hidden for feeding activities (bottle, meal, breastfeeding), diaper activities, growth activities, health activities, and leisure activities as they use save time */}
-        {!(selectedAction.id === "feeding" && (formData.subtype === "BOTTLE" || formData.subtype === "MEAL" || formData.subtype === "LEFT_BREAST" || formData.subtype === "RIGHT_BREAST")) && selectedAction.id !== "diapering" && selectedAction.id !== "growth" && selectedAction.id !== "health" && selectedAction.id !== "leisure" && (
+        {!(actionType === "feeding" && (formData.subtype === "BOTTLE" || formData.subtype === "MEAL" || formData.subtype === "LEFT_BREAST" || formData.subtype === "RIGHT_BREAST")) && actionType !== "diapering" && actionType !== "growth" && actionType !== "health" && actionType !== "leisure" && (
           <div>
             <Label htmlFor="time">Time</Label>
             <Input
@@ -359,7 +422,7 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
         )}
 
         {/* Note for feeding activities */}
-        {selectedAction.id === "feeding" && (formData.subtype === "BOTTLE" || formData.subtype === "MEAL" || formData.subtype === "LEFT_BREAST" || formData.subtype === "RIGHT_BREAST") && (
+        {actionType === "feeding" && (formData.subtype === "BOTTLE" || formData.subtype === "MEAL" || formData.subtype === "LEFT_BREAST" || formData.subtype === "RIGHT_BREAST") && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-sm text-blue-700">
               ⏰ {formData.subtype === "BOTTLE" ? "Bottle feeding" : 
@@ -370,7 +433,7 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
         )}
 
         {/* Note for diaper activities */}
-        {selectedAction.id === "diapering" && (
+        {actionType === "diapering" && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-3">
             <p className="text-sm text-green-700">
               ⏰ Diaper change time will be recorded when you save
@@ -379,7 +442,7 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
         )}
 
         {/* Note for growth activities */}
-        {selectedAction.id === "growth" && (
+        {actionType === "growth" && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
             <p className="text-sm text-yellow-700">
               ⏰ Growth measurement time will be recorded when you save
@@ -388,7 +451,7 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
         )}
 
         {/* Note for health activities */}
-        {selectedAction.id === "health" && (formData.subtype === "HEALTH_MEDICATIONS" || formData.subtype === "HEALTH_VACCINATIONS") && (
+        {actionType === "health" && (formData.subtype === "HEALTH_MEDICATIONS" || formData.subtype === "HEALTH_VACCINATIONS") && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3">
             <p className="text-sm text-red-700">
               ⏰ {formData.subtype === "HEALTH_MEDICATIONS" ? "Medication" : "Vaccination"} time will be recorded when you save
@@ -397,7 +460,7 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
         )}
 
         {/* Type-specific inputs */}
-        {selectedAction.id === "feeding" && (
+        {actionType === "feeding" && (
           <>
             <div>
               <Label htmlFor="subtype">Feeding Type</Label>
@@ -524,7 +587,7 @@ required={false}
         )}
 
 
-        {selectedAction.id === "diapering" && (
+        {actionType === "diapering" && (
           <>
             <div>
               <Label htmlFor="subtype">Diaper Type</Label>
@@ -564,7 +627,7 @@ required={false}
           </>
         )}
 
-        {selectedAction.id === "growth" && (
+        {actionType === "growth" && (
           <>
             <div>
               <Label htmlFor="subtype">Growth Type</Label>
@@ -656,7 +719,7 @@ required={false}
           </>
         )}
 
-        {selectedAction.id === "health" && (
+        {actionType === "health" && (
           <>
             <div>
               <Label htmlFor="subtype">Health Type</Label>
@@ -716,7 +779,7 @@ required={false}
           </>
         )}
 
-        {selectedAction.id === "leisure" && (
+        {actionType === "leisure" && (
           <>
             <div>
               <Label htmlFor="subtype">Leisure Type</Label>
@@ -782,7 +845,7 @@ required={false}
           </Button>
           <Button type="submit" disabled={saving} className="flex-1">
             {saving ? "Saving..." : 
-             (selectedAction?.id === "feeding" && (formData.subtype === "BOTTLE" || formData.subtype === "LEFT_BREAST" || formData.subtype === "RIGHT_BREAST")) ? "Start" : "Save"}
+             (actionType === "feeding" && (formData.subtype === "BOTTLE" || formData.subtype === "LEFT_BREAST" || formData.subtype === "RIGHT_BREAST")) ? "Start" : "Save"}
           </Button>
         </div>
 
@@ -822,14 +885,19 @@ required={false}
                   {/* Dropdown Menu */}
                   <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-40">
                     <div className="py-1">
-                      {quickActions.map((action) => (
+                      {allActions.map((action) => (
                         <button
                           key={action.id}
                           onClick={() => {
                             handleActionClick(action);
                             setShowAllActionsDropdown(false);
                           }}
-                          className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          className="flex items-center w-full px-3 py-2 text-sm font-normal text-left text-gray-700 hover:bg-gray-100 transition-colors"
+                          style={{ 
+                            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                            fontWeight: 'normal',
+                            fontStyle: 'normal'
+                          }}
                         >
                           <span className="mr-2 text-base">{action.icon}</span>
                           {action.label}
@@ -846,7 +914,11 @@ required={false}
           <div className="overflow-x-auto scrollbar-hide">
             <div className="flex gap-2 pb-2 w-max">
               {quickActions
-                .filter(action => quickActionsSettings?.[action.id] !== false)
+                .filter(action => {
+                  // For new subtype-based actions, check the action.id (e.g., 'feeding-bottle')
+                  // For old type-based actions, check action.type or action.id
+                  return quickActionsSettings?.[action.id] !== false;
+                })
                 .slice(0, 5)
                 .map((action) => (
                   <button
