@@ -61,25 +61,60 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
     shareRole: "EDITOR"
   });
 
-  // 🔥 NEW: Initialize sync service on component mount
+  // 🔥 OPTIMIZED: Initialize sync service and load cached babies first
   useEffect(() => {
     // Initialize sync service for background synchronization
     initSyncService();
     
     if (session) {
-      fetchUserBabies();
+      // STEP 1: Load cached babies from localStorage immediately (if available)
+      loadCachedBabies();
+      
+      // STEP 2: Fetch fresh babies from server in background (silently)
+      setTimeout(() => fetchUserBabies(true), 100);
     }
   }, [session]);
 
-  const fetchUserBabies = async () => {
+  // Load cached babies from localStorage first (for faster startup)
+  const loadCachedBabies = () => {
     try {
+      const cachedBabies = localStorage.getItem('baby-tracker-cached-babies');
+      if (cachedBabies) {
+        const parsedBabies = JSON.parse(cachedBabies);
+        console.log('🚀 Loading cached babies for fast startup:', parsedBabies.length, 'babies');
+        setBabies(parsedBabies);
+        
+        // Auto-select first baby if none selected
+        if (parsedBabies.length > 0 && !selectedBaby) {
+          onBabyChange(parsedBabies[0]);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading cached babies:', error);
+      // Continue without cached data
+    }
+  };
+
+  const fetchUserBabies = async (silent = false) => {
+    try {
+      if (!silent) {
+        console.log('🔄 Fetching fresh babies from server...');
+      }
       const response = await fetch('/api/user/babies');
       const result = await response.json();
       if (result.success) {
         setBabies(result.data);
+        
+        // Cache the babies for next startup
+        localStorage.setItem('baby-tracker-cached-babies', JSON.stringify(result.data));
+        
         // Auto-select first baby if none selected
         if (result.data.length > 0 && !selectedBaby) {
           onBabyChange(result.data[0]);
+        }
+        
+        if (!silent) {
+          console.log('✅ Fresh babies loaded from server:', result.data.length, 'babies');
         }
       }
     } catch (error) {

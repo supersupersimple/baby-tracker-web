@@ -84,14 +84,27 @@ export default function Home() {
   }, []);
 
 
-  // Show loading state
+  // Optimized loading state - faster and more responsive
   if (status === "loading") {
     return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-center">
-          <div className="text-4xl mb-4">👶</div>
-          <p className="text-gray-500">Loading...</p>
-        </div>
+      <div className="flex flex-col h-full min-h-0">
+        {/* Show header immediately even while loading session */}
+        <AppHeader 
+          selectedBaby={null} 
+          onBabyChange={() => {}} 
+        />
+        
+        {/* Main Content Loading */}
+        <main className="flex-1 max-w-4xl mx-auto py-3 px-2 sm:px-4 lg:px-6 pb-8 sm:pb-6 flex flex-col overflow-hidden min-w-0">
+          <div className="flex items-center justify-center min-h-64">
+            <div className="text-center">
+              <div className="text-4xl mb-4">👶</div>
+              <p className="text-gray-500">Loading...</p>
+            </div>
+          </div>
+        </main>
+        
+        <OfflineIndicator />
       </div>
     );
   }
@@ -121,16 +134,19 @@ export default function Home() {
             </div>
           </div>
         ) : !selectedBaby ? (
-          // Show baby selection prompt
+          // Show baby selection prompt - optimized for faster perceived loading
           <div className="text-center py-16 px-4">
             <div className="text-6xl mb-4">👶</div>
-            <h3 className="text-2xl font-semibold text-gray-900 mb-2">Select your baby</h3>
+            <h3 className="text-2xl font-semibold text-gray-900 mb-2">Welcome to Baby Tracker</h3>
             <p className="text-lg text-gray-500 mb-6 max-w-md mx-auto">
-              Choose a baby from the dropdown above to start tracking activities, or create a new baby profile.
+              {session ? 
+                "Loading your babies or create a new baby profile to get started." :
+                "Choose a baby from the dropdown above to start tracking activities, or create a new baby profile."
+              }
             </p>
             <div className="inline-flex items-center text-base text-blue-600 bg-blue-50 px-4 py-2 rounded-full">
-              <span className="mr-2">💡</span>
-              Tip: Use the menu to create a new baby
+              <span className="mr-2">{session ? "⏳" : "💡"}</span>
+              {session ? "Loading..." : "Tip: Use the menu to create a new baby"}
             </div>
           </div>
         ) : (
