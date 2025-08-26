@@ -25,7 +25,6 @@ dist/
 *.sqlite3
 /prisma/dev.db
 /prisma/prisma/dev.db
-/prisma/migrations/
 prisma/dev.db*
 
 # Generated files
@@ -127,6 +126,5 @@ dev.log
 server.log
 
 # Prisma
-# Keep schema.prisma but ignore generated client and dev databases
-# prisma/schema.prisma should be committed
-# prisma/migrations/ might be committed depending on your workflow
+# Keep schema.prisma and migrations/ - both are needed for deployment
+# Only ignore the generated client and local dev databases
