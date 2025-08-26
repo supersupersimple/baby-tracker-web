@@ -1231,7 +1231,7 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
               
               <div className="mt-6">
                 <h4 className="text-sm font-medium text-gray-900 mb-2">All Actions Menu</h4>
-                <p className="text-xs text-gray-500 mb-3">These appear in the "All Actions" dropdown:</p>
+                <p className="text-xs text-gray-500 mb-3">These appear in the &ldquo;All Actions&rdquo; dropdown:</p>
                 
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center justify-between">
