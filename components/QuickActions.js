@@ -249,7 +249,13 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
         unit: null,
         amount: null,
         category: null,
-        details: ""
+        details: "",
+        // Add user information for creator differentiation
+        user: session?.user ? {
+          id: null, // Will be filled when synced
+          name: session.user.name,
+          email: session.user.email
+        } : null
       };
 
       // 🚀 LOCAL-FIRST: Store immediately to local storage
@@ -347,6 +353,13 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
 
       // Handle details - just use the details as entered (category is handled separately)
       activityData.details = formData.details || "";
+
+      // Add user information for creator differentiation
+      activityData.user = session?.user ? {
+        id: null, // Will be filled when synced
+        name: session.user.name,
+        email: session.user.email
+      } : null;
 
       // 🚀 LOCAL-FIRST APPROACH: Store immediately to local storage
       console.log('💾 About to store activity locally:', activityData);
