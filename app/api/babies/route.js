@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authConfig } from '../../../lib/auth.js';
-import { prisma } from '../../../lib/prisma.js';
+import { db } from '../../../lib/database.js';
+import { users, babies } from '../../../lib/schema.js';
+import { eq } from 'drizzle-orm';
 import { canUserCreateBaby, LIMITS } from '../../../lib/config.js';
 
 function generateInviteCode() {
@@ -30,22 +32,19 @@ export async function POST(request) {
     }
 
     // Find or create user
-    let user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
+    let user = await db.select().from(users).where(eq(users.email, session.user.email)).get();
 
     if (!user) {
-      user = await prisma.user.create({
-        data: {
-          email: session.user.email,
-          name: session.user.name || session.user.email.split('@')[0],
-          image: session.user.image
-        }
-      });
+      const newUser = await db.insert(users).values({
+        email: session.user.email,
+        name: session.user.name || session.user.email.split('@')[0],
+        image: session.user.image
+      }).returning();
+      user = newUser[0];
     }
 
     // Check if user can create more babies (max babies per user limit)
-    const canCreate = await canUserCreateBaby(prisma, user.id);
+    const canCreate = await canUserCreateBaby(db, user.id);
     if (!canCreate) {
       return NextResponse.json({
         success: false,
@@ -55,35 +54,47 @@ export async function POST(request) {
 
     // Create baby with unique invite code
     let inviteCode = generateInviteCode();
-    while (await prisma.baby.findUnique({ where: { inviteCode } })) {
+    while (await db.select().from(babies).where(eq(babies.inviteCode, inviteCode)).get()) {
       inviteCode = generateInviteCode();
     }
     
-    const baby = await prisma.baby.create({
-      data: {
-        ownerId: user.id,
-        babyName,
-        gender,
-        birthday: new Date(birthday),
-        description: description || '',
-        inviteCode
-      },
-      include: {
-        owner: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
+    const newBabyData = {
+      owner_id: user.id,
+      baby_name: babyName,
+      gender,
+      birthday: Math.floor(new Date(birthday).getTime() / 1000), // Convert to unix timestamp
+      description: description || '',
+      inviteCode
+    };
+    
+    const insertResult = await db.insert(babies).values(newBabyData).returning();
+    const createdBaby = insertResult[0];
+    
+    // Get the baby with owner info
+    const babyWithOwner = await db.select({
+      baby: babies,
+      owner: {
+        id: users.id,
+        name: users.name,
+        email: users.email
       }
-    });
+    })
+    .from(babies)
+    .leftJoin(users, eq(babies.owner_id, users.id))
+    .where(eq(babies.id, createdBaby.id))
+    .get();
+    
+    const baby = {
+      ...babyWithOwner.baby,
+      birthday: new Date(babyWithOwner.baby.birthday * 1000), // Convert back to Date for response
+      owner: babyWithOwner.owner
+    };
 
     return NextResponse.json({
       success: true,
       data: {
         id: baby.id,
-        babyName: baby.babyName,
+        babyName: baby.baby_name,
         gender: baby.gender,
         birthday: baby.birthday,
         description: baby.description,

@@ -2,7 +2,9 @@ import { activityService, babyService } from '../../../lib/services.js'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authConfig } from '../../../lib/auth.js'
-import { prisma } from '../../../lib/prisma.js'
+import { db } from '../../../lib/database.js'
+import { users } from '../../../lib/schema.js'
+import { eq } from 'drizzle-orm'
 
 export async function GET(request) {
   try {
@@ -16,9 +18,7 @@ export async function GET(request) {
     }
 
     // Find current user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    })
+    const user = await db.select().from(users).where(eq(users.email, session.user.email)).get()
 
     if (!user) {
       return NextResponse.json({
@@ -46,7 +46,7 @@ export async function GET(request) {
         ...activity,
         baby: {
           id: baby.id,
-          babyName: baby.babyName,
+          babyName: baby.baby_name,
           gender: baby.gender
         }
       }))

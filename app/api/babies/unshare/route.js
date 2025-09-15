@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authConfig } from '../../../../lib/auth.js';
-import { prisma } from '../../../../lib/prisma.js';
+import { db } from '../../../../lib/database.js';
+import { users, babyAccess, babies } from '../../../../lib/schema.js';
+import { eq } from 'drizzle-orm';
 
 export async function DELETE(request) {
   try {
@@ -25,9 +27,7 @@ export async function DELETE(request) {
     }
 
     // Find current user
-    const currentUser = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
+    const currentUser = await db.select().from(users).where(eq(users.email, session.user.email)).get();
 
     if (!currentUser) {
       return NextResponse.json({
@@ -37,24 +37,26 @@ export async function DELETE(request) {
     }
 
     // Find access record and verify ownership
-    const access = await prisma.babyAccess.findUnique({
-      where: { id: parseInt(accessId) },
-      include: {
-        baby: {
-          select: {
-            id: true,
-            babyName: true,
-            ownerId: true
-          }
-        },
-        user: {
-          select: {
-            email: true,
-            name: true
-          }
-        }
+    const access = await db.select({
+      id: babyAccess.id,
+      user_id: babyAccess.user_id,
+      baby_id: babyAccess.baby_id,
+      role: babyAccess.role,
+      baby: {
+        id: babies.id,
+        baby_name: babies.baby_name,
+        owner_id: babies.owner_id
+      },
+      user: {
+        email: users.email,
+        name: users.name
       }
-    });
+    })
+    .from(babyAccess)
+    .leftJoin(babies, eq(babyAccess.baby_id, babies.id))
+    .leftJoin(users, eq(babyAccess.user_id, users.id))
+    .where(eq(babyAccess.id, parseInt(accessId)))
+    .get();
 
     if (!access) {
       return NextResponse.json({
@@ -64,7 +66,7 @@ export async function DELETE(request) {
     }
 
     // Check if current user is baby owner
-    if (access.baby.ownerId !== currentUser.id) {
+    if (access.baby.owner_id !== currentUser.id) {
       return NextResponse.json({
         success: false,
         error: 'Only baby owners can remove access',
@@ -72,9 +74,7 @@ export async function DELETE(request) {
     }
 
     // Delete access
-    await prisma.babyAccess.delete({
-      where: { id: parseInt(accessId) }
-    });
+    await db.delete(babyAccess).where(eq(babyAccess.id, parseInt(accessId)));
 
     return NextResponse.json({
       success: true,

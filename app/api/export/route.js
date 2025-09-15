@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authConfig } from '../../../lib/auth.js';
-import { prisma } from '../../../lib/prisma.js';
+import { db } from '../../../lib/database.js';
+import { users, babies, activities } from '../../../lib/schema.js';
+import { eq, and } from 'drizzle-orm';
 import JSZip from 'jszip';
 
 export async function GET(request) {
@@ -27,9 +29,7 @@ export async function GET(request) {
     }
 
     // Find current user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
+    const user = await db.select().from(users).where(eq(users.email, session.user.email)).get();
 
     if (!user) {
       return NextResponse.json({
@@ -39,12 +39,20 @@ export async function GET(request) {
     }
 
     // Verify baby ownership - only owners can export data
-    const baby = await prisma.baby.findUnique({
-      where: { id: parseInt(babyId) },
-      include: {
-        owner: true
-      }
-    });
+    const babyResult = await db.select({
+      baby: babies,
+      owner: users
+    })
+    .from(babies)
+    .leftJoin(users, eq(babies.owner_id, users.id))
+    .where(eq(babies.id, parseInt(babyId)))
+    .get();
+    
+    const baby = babyResult ? {
+      ...babyResult.baby,
+      birthday: new Date(babyResult.baby.birthday * 1000),
+      owner: babyResult.owner
+    } : null;
 
     if (!baby) {
       return NextResponse.json({
@@ -53,7 +61,7 @@ export async function GET(request) {
       }, { status: 404 });
     }
 
-    if (baby.ownerId !== user.id) {
+    if (baby.owner_id !== user.id) {
       return NextResponse.json({
         success: false,
         error: 'Only baby owners can export data. You must be the owner of this baby to export activities.',
@@ -61,12 +69,18 @@ export async function GET(request) {
     }
 
     // Fetch activities for this specific baby only
-    const activities = await prisma.activity.findMany({
-      where: { babyId: parseInt(babyId) },
-      orderBy: {
-        fromDate: 'asc'
-      }
-    });
+    const activitiesResult = await db.select()
+      .from(activities)
+      .where(eq(activities.baby_id, parseInt(babyId)))
+      .orderBy(activities.from_date)
+      .all();
+    
+    // Convert unix timestamps to Date objects
+    const activitiesWithDates = activitiesResult.map(activity => ({
+      ...activity,
+      fromDate: new Date(activity.from_date * 1000),
+      toDate: activity.to_date ? new Date(activity.to_date * 1000) : null
+    }));
 
     // Convert date format from ISO to "YYYY-MM-DD HH:mm:ss"
     const convertDateFormat = (isoDateStr) => {
@@ -84,7 +98,7 @@ export async function GET(request) {
     };
 
     // Transform activities to match example.json format
-    const records = activities.map(activity => {
+    const records = activitiesWithDates.map(activity => {
       const record = {
         type: activity.type,
         subtype: activity.subtype,
@@ -116,7 +130,7 @@ export async function GET(request) {
     // Create export data matching example.json structure
     const exportData = {
       version: 1,
-      name: baby?.babyName || "baby",
+      name: baby?.baby_name || "baby",
       notes: [],
       records: records,
       gender: baby?.gender?.toUpperCase() || "BOY",
@@ -142,7 +156,7 @@ export async function GET(request) {
     // Generate filename with baby name and current date
     const now = new Date();
     const dateString = now.toISOString().split('T')[0]; // YYYY-MM-DD format
-    const safebabyName = (baby?.babyName || "baby").replace(/[^a-zA-Z0-9]/g, '_');
+    const safebabyName = (baby?.baby_name || "baby").replace(/[^a-zA-Z0-9]/g, '_');
     const filename = `${safebabyName}_${dateString}.abt`;
 
     // Return the zipped data as .abt file

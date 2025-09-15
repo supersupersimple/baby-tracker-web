@@ -1,28 +1,26 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authConfig } from '../../../../lib/auth.js';
-import { prisma } from '../../../../lib/prisma.js';
+import { db } from '../../../../lib/database.js';
+import { users, babies, activities, babyAccess } from '../../../../lib/schema.js';
+import { eq, and, inArray } from 'drizzle-orm';
 
 // Helper function to check user's permission for a baby
 async function getUserBabyPermission(userId, babyId) {
-  const baby = await prisma.baby.findUnique({
-    where: { id: parseInt(babyId) },
-    include: {
-      babyAccess: {
-        where: { userId },
-        select: { role: true }
-      }
-    }
-  });
+  const baby = await db.select().from(babies).where(eq(babies.id, parseInt(babyId))).get();
 
   if (!baby) return null;
   
   // Owner has ADMIN permission
-  if (baby.ownerId === userId) return 'ADMIN';
+  if (baby.owner_id === userId) return 'ADMIN';
   
   // Check shared access
-  if (baby.babyAccess.length > 0) {
-    return baby.babyAccess[0].role;
+  const access = await db.select().from(babyAccess)
+    .where(and(eq(babyAccess.baby_id, parseInt(babyId)), eq(babyAccess.user_id, userId)))
+    .get();
+  
+  if (access) {
+    return access.role;
   }
   
   return null; // No permission
@@ -50,9 +48,7 @@ export async function PATCH(request, { params }) {
     }
 
     // Find current user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
+    const user = await db.select().from(users).where(eq(users.email, session.user.email)).get();
 
     if (!user) {
       return NextResponse.json({
@@ -67,47 +63,76 @@ export async function PATCH(request, { params }) {
 
     if (!isNaN(activityId)) {
       // Check if activity exists with server ID
-      existingActivity = await prisma.activity.findUnique({
-        where: { id: activityId },
-        include: {
-          baby: {
-            select: {
-              id: true,
-              babyName: true,
-              ownerId: true
-            }
-          }
+      existingActivity = await db.select({
+        id: activities.id,
+        babyId: activities.baby_id,
+        ulid: activities.ulid,
+        type: activities.type,
+        subtype: activities.subtype,
+        fromDate: activities.from_date,
+        toDate: activities.to_date,
+        amount: activities.amount,
+        unit: activities.unit,
+        category: activities.category,
+        details: activities.details,
+        status: activities.status,
+        recorder: activities.recorder,
+        baby: {
+          id: babies.id,
+          babyName: babies.baby_name,
+          ownerId: babies.owner_id
         }
-      });
+      })
+      .from(activities)
+      .leftJoin(babies, eq(activities.baby_id, babies.id))
+      .where(eq(activities.id, activityId))
+      .get();
     } else {
       // Try to find by ULID - since ULID now requires babyId in composite constraint,
       // we need to search across all babies the user has access to
-      const userBabies = await prisma.baby.findMany({
-        where: {
-          OR: [
-            { ownerId: user.id },
-            { babyAccess: { some: { userId: user.id } } }
-          ]
-        },
-        select: { id: true }
-      });
+      const ownedBabies = await db.select({ id: babies.id })
+        .from(babies)
+        .where(eq(babies.owner_id, user.id));
+      
+      const accessBabies = await db.select({ babyId: babyAccess.baby_id })
+        .from(babyAccess)
+        .where(eq(babyAccess.user_id, user.id));
+      
+      const userBabies = [
+        ...ownedBabies.map(b => ({ id: b.id })),
+        ...accessBabies.map(b => ({ id: b.babyId }))
+      ];
 
       // Search for activity with matching ULID across user's accessible babies
-      existingActivity = await prisma.activity.findFirst({
-        where: {
-          ulid: id,
-          babyId: { in: userBabies.map(baby => baby.id) }
-        },
-        include: {
+      if (userBabies.length > 0) {
+        existingActivity = await db.select({
+          id: activities.id,
+          babyId: activities.baby_id,
+          ulid: activities.ulid,
+          type: activities.type,
+          subtype: activities.subtype,
+          fromDate: activities.from_date,
+          toDate: activities.to_date,
+          amount: activities.amount,
+          unit: activities.unit,
+          category: activities.category,
+          details: activities.details,
+          status: activities.status,
+          recorder: activities.recorder,
           baby: {
-            select: {
-              id: true,
-              babyName: true,
-              ownerId: true
-            }
+            id: babies.id,
+            babyName: babies.baby_name,
+            ownerId: babies.owner_id
           }
-        }
-      });
+        })
+        .from(activities)
+        .leftJoin(babies, eq(activities.baby_id, babies.id))
+        .where(and(
+          eq(activities.ulid, id),
+          inArray(activities.baby_id, userBabies.map(baby => baby.id))
+        ))
+        .get();
+      }
     }
 
     // If not found by server ID, this might be a local ULID that needs to be synced first
@@ -116,15 +141,24 @@ export async function PATCH(request, { params }) {
       
       // For local activities, we need to create them on the server first
       // Extract the baby ID from the request body or use a default
-      const babyId = body.babyId || (await prisma.baby.findFirst({
-        where: {
-          OR: [
-            { ownerId: user.id },
-            { babyAccess: { some: { userId: user.id } } }
-          ]
-        },
-        select: { id: true }
-      }))?.id;
+      let babyId = body.babyId;
+      if (!babyId) {
+        const defaultBaby = await db.select({ id: babies.id })
+          .from(babies)
+          .where(eq(babies.owner_id, user.id))
+          .get();
+        
+        if (!defaultBaby) {
+          // Try to find a baby from access permissions
+          const accessBaby = await db.select({ babyId: babyAccess.baby_id })
+            .from(babyAccess)
+            .where(eq(babyAccess.user_id, user.id))
+            .get();
+          babyId = accessBaby?.babyId;
+        } else {
+          babyId = defaultBaby.id;
+        }
+      }
 
       if (!babyId) {
         return NextResponse.json({
@@ -156,41 +190,92 @@ export async function PATCH(request, { params }) {
         category: body.category?.toUpperCase() || null,
       };
 
-      const newActivity = await prisma.activity.create({
-        data: {
-          ...createData,
-          ulid: id, // Store the client ULID
-          status: 'active'
+      // Convert dates to ISO8601 strings for Drizzle
+      const now = new Date().toISOString();
+      const createDataForDrizzle = {
+        baby_id: parseInt(babyId),
+        recorder: user.id,
+        ulid: id, // Store the client ULID
+        status: 'active',
+        type: body.type || 'FEEDING',
+        subtype: body.subtype || 'MEAL',
+        from_date: createData.fromDate.toISOString(),
+        to_date: createData.toDate ? createData.toDate.toISOString() : null,
+        amount: body.amount ? parseFloat(body.amount) : null,
+        unit: body.unit?.toUpperCase() || null,
+        category: body.category?.toUpperCase() || null,
+        details: body.details || null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      
+      const newActivity = await db.insert(activities).values(createDataForDrizzle).returning().get();
+      
+      // Fetch the complete activity with related data
+      const completeActivity = await db.select({
+        id: activities.id,
+        babyId: activities.baby_id,
+        ulid: activities.ulid,
+        type: activities.type,
+        subtype: activities.subtype,
+        fromDate: activities.from_date,
+        toDate: activities.to_date,
+        amount: activities.amount,
+        unit: activities.unit,
+        category: activities.category,
+        details: activities.details,
+        status: activities.status,
+        recorder: activities.recorder,
+        user: {
+          id: users.id,
+          name: users.name,
+          email: users.email
         },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true
-            }
-          },
-          baby: {
-            select: {
-              id: true,
-              babyName: true,
-              gender: true
-            }
-          }
+        baby: {
+          id: babies.id,
+          babyName: babies.baby_name,
+          gender: babies.gender
         }
-      });
+      })
+      .from(activities)
+      .leftJoin(users, eq(activities.recorder, users.id))
+      .leftJoin(babies, eq(activities.baby_id, babies.id))
+      .where(eq(activities.id, newActivity.id))
+      .get();
+      
+      // Convert ISO8601 strings back to Date objects for response
+      const activityForResponse = {
+        ...completeActivity,
+        fromDate: new Date(completeActivity.fromDate),
+        toDate: completeActivity.toDate ? new Date(completeActivity.toDate) : null
+      };
 
       console.log(`✅ Created new activity ${newActivity.id} on server for local ULID ${id}`);
 
       return NextResponse.json({
         success: true,
-        data: newActivity,
+        data: activityForResponse,
         message: 'Local activity synced and updated on server'
       });
     }
 
+    // If activity still not found, return 404
+    if (!existingActivity) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Activity not found' 
+      }, { status: 404 });
+    }
+
+    // Convert ISO8601 strings back to Date objects for consistency with existing logic
+    const existingActivityWithDates = {
+      ...existingActivity,
+      fromDate: existingActivity.fromDate ? new Date(existingActivity.fromDate) : null,
+      toDate: existingActivity.toDate ? new Date(existingActivity.toDate) : null
+    };
+
     // Check permission - must be EDITOR or ADMIN to edit activities
-    const permission = await getUserBabyPermission(user.id, existingActivity.babyId);
+    const permission = await getUserBabyPermission(user.id, existingActivityWithDates.babyId);
     if (!permission || permission === 'VIEWER') {
       return NextResponse.json({
         success: false,
@@ -203,9 +288,9 @@ export async function PATCH(request, { params }) {
     
     // Handle end time / to date field (support both legacy and new field names)
     if (body.endTime) {
-      updateData.toDate = new Date(body.endTime);
+      updateData.to_date = new Date(body.endTime).toISOString();
     } else if (body.toDate) {
-      updateData.toDate = new Date(body.toDate);
+      updateData.to_date = new Date(body.toDate).toISOString();
     }
     
     // Handle other field updates  
@@ -215,32 +300,55 @@ export async function PATCH(request, { params }) {
     if (body.type !== undefined) updateData.type = body.type?.toUpperCase();
     if (body.subtype !== undefined) updateData.subtype = body.subtype?.toUpperCase();
     if (body.category !== undefined) updateData.category = body.category?.toUpperCase();
-    if (body.fromDate !== undefined) updateData.fromDate = new Date(body.fromDate);
+    if (body.fromDate !== undefined) updateData.from_date = new Date(body.fromDate).toISOString();
 
-    const updatedActivity = await prisma.activity.update({
-      where: { id: activityId },
-      data: updateData,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        baby: {
-          select: {
-            id: true,
-            babyName: true,
-            gender: true
-          }
-        }
+    // Always update the updatedAt timestamp
+    updateData.updatedAt = new Date().toISOString();
+
+    await db.update(activities).set(updateData).where(eq(activities.id, existingActivityWithDates.id));
+    
+    // Fetch the updated activity with related data
+    const updatedActivity = await db.select({
+      id: activities.id,
+      babyId: activities.baby_id,
+      ulid: activities.ulid,
+      type: activities.type,
+      subtype: activities.subtype,
+      fromDate: activities.from_date,
+      toDate: activities.to_date,
+      amount: activities.amount,
+      unit: activities.unit,
+      category: activities.category,
+      details: activities.details,
+      status: activities.status,
+      recorder: activities.recorder,
+      user: {
+        id: users.id,
+        name: users.name,
+        email: users.email
+      },
+      baby: {
+        id: babies.id,
+        babyName: babies.baby_name,
+        gender: babies.gender
       }
-    });
+    })
+    .from(activities)
+    .leftJoin(users, eq(activities.recorder, users.id))
+    .leftJoin(babies, eq(activities.baby_id, babies.id))
+    .where(eq(activities.id, existingActivityWithDates.id))
+    .get();
+    
+    // Convert ISO8601 strings back to Date objects for response
+    const updatedActivityForResponse = {
+      ...updatedActivity,
+      fromDate: new Date(updatedActivity.fromDate),
+      toDate: updatedActivity.toDate ? new Date(updatedActivity.toDate) : null
+    };
 
     return NextResponse.json({
       success: true,
-      data: updatedActivity
+      data: updatedActivityForResponse
     });
 
   } catch (error) {
@@ -274,9 +382,7 @@ export async function DELETE(request, { params }) {
     }
 
     // Find current user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
+    const user = await db.select().from(users).where(eq(users.email, session.user.email)).get();
 
     if (!user) {
       return NextResponse.json({
@@ -288,47 +394,58 @@ export async function DELETE(request, { params }) {
     // Check if activity exists and get baby info (try by ID first, then by ULID)
     let existingActivity = null;
     if (!isNaN(activityId)) {
-      existingActivity = await prisma.activity.findUnique({
-        where: { id: activityId },
-        include: {
-          baby: {
-            select: {
-              id: true,
-              babyName: true,
-              ownerId: true
-            }
-          }
+      existingActivity = await db.select({
+        id: activities.id,
+        babyId: activities.baby_id,
+        ulid: activities.ulid,
+        status: activities.status,
+        baby: {
+          id: babies.id,
+          babyName: babies.baby_name,
+          ownerId: babies.owner_id
         }
-      });
+      })
+      .from(activities)
+      .leftJoin(babies, eq(activities.baby_id, babies.id))
+      .where(eq(activities.id, activityId))
+      .get();
     }
     
     // If not found by ID, try by ULID across user's accessible babies
     if (!existingActivity) {
-      const userBabies = await prisma.baby.findMany({
-        where: {
-          OR: [
-            { ownerId: user.id },
-            { babyAccess: { some: { userId: user.id } } }
-          ]
-        },
-        select: { id: true }
-      });
+      const ownedBabies = await db.select({ id: babies.id })
+        .from(babies)
+        .where(eq(babies.owner_id, user.id));
+      
+      const accessBabies = await db.select({ babyId: babyAccess.baby_id })
+        .from(babyAccess)
+        .where(eq(babyAccess.user_id, user.id));
+      
+      const userBabies = [
+        ...ownedBabies.map(b => ({ id: b.id })),
+        ...accessBabies.map(b => ({ id: b.babyId }))
+      ];
 
-      existingActivity = await prisma.activity.findFirst({
-        where: {
-          ulid: id,
-          babyId: { in: userBabies.map(baby => baby.id) }
-        },
-        include: {
+      if (userBabies.length > 0) {
+        existingActivity = await db.select({
+          id: activities.id,
+          babyId: activities.baby_id,
+          ulid: activities.ulid,
+          status: activities.status,
           baby: {
-            select: {
-              id: true,
-              babyName: true,
-              ownerId: true
-            }
+            id: babies.id,
+            babyName: babies.baby_name,
+            ownerId: babies.owner_id
           }
-        }
-      });
+        })
+        .from(activities)
+        .leftJoin(babies, eq(activities.baby_id, babies.id))
+        .where(and(
+          eq(activities.ulid, id),
+          inArray(activities.baby_id, userBabies.map(baby => baby.id))
+        ))
+        .get();
+      }
     }
 
     if (!existingActivity) {
@@ -348,13 +465,12 @@ export async function DELETE(request, { params }) {
     }
 
     // Soft delete the activity
-    await prisma.activity.update({
-      where: { id: existingActivity.id },
-      data: { 
+    await db.update(activities)
+      .set({ 
         status: 'deleted',
-        updatedAt: new Date()
-      }
-    });
+        updatedAt: new Date().toISOString()
+      })
+      .where(eq(activities.id, existingActivity.id));
 
     return NextResponse.json({
       success: true,

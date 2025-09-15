@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authConfig } from '../../../../lib/auth.js';
-import { prisma } from '../../../../lib/prisma.js';
+import db from '../../../../lib/database.js';
+import { users, babies, babyAccess } from '../../../../lib/schema.js';
+import { eq, and } from 'drizzle-orm';
 import { canShareBaby, LIMITS } from '../../../../lib/config.js';
 
 export async function POST(request) {
@@ -33,9 +35,7 @@ export async function POST(request) {
     }
 
     // Find current user
-    const currentUser = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
+    const currentUser = await db.select().from(users).where(eq(users.email, session.user.email)).get();
 
     if (!currentUser) {
       return NextResponse.json({
@@ -45,23 +45,20 @@ export async function POST(request) {
     }
 
     // Find baby and verify ownership
-    const baby = await prisma.baby.findUnique({
-      where: { id: parseInt(babyId) },
-      include: {
-        owner: true,
-        babyAccess: true
-      }
-    });
-
+    const baby = await db.select().from(babies).where(eq(babies.id, parseInt(babyId))).get();
+    
     if (!baby) {
       return NextResponse.json({
         success: false,
         error: 'Baby not found',
       }, { status: 404 });
     }
+    
+    // Get baby access records
+    const babyAccessRecords = await db.select().from(babyAccess).where(eq(babyAccess.baby_id, baby.id));
 
     // Check if current user is owner
-    if (baby.ownerId !== currentUser.id) {
+    if (baby.owner_id !== currentUser.id) {
       return NextResponse.json({
         success: false,
         error: 'Only baby owners can share access',
@@ -77,29 +74,25 @@ export async function POST(request) {
     }
 
     // Find or create the target user
-    let targetUser = await prisma.user.findUnique({
-      where: { email }
-    });
+    let targetUser = await db.select().from(users).where(eq(users.email, email)).get();
 
     if (!targetUser) {
       // Create a placeholder user for the email
-      targetUser = await prisma.user.create({
-        data: {
-          email,
-          name: email.split('@')[0], // Use email prefix as default name
-        }
-      });
+      const [newUser] = await db.insert(users).values({
+        email,
+        name: email.split('@')[0], // Use email prefix as default name
+      }).returning();
+      targetUser = newUser;
     }
 
     // Check if already has access
-    const existingAccess = baby.babyAccess.find(access => access.userId === targetUser.id);
+    const existingAccess = babyAccessRecords.find(access => access.user_id === targetUser.id);
     
     if (existingAccess) {
       // Update existing access
-      await prisma.babyAccess.update({
-        where: { id: existingAccess.id },
-        data: { role }
-      });
+      await db.update(babyAccess)
+        .set({ role })
+        .where(eq(babyAccess.id, existingAccess.id));
       
       return NextResponse.json({
         success: true,
@@ -112,7 +105,7 @@ export async function POST(request) {
       });
     } else {
       // Check if baby can be shared with more users (max shared users limit)
-      const canShare = await canShareBaby(prisma, baby.id);
+      const canShare = await canShareBaby(db, baby.id);
       if (!canShare) {
         return NextResponse.json({
           success: false,
@@ -121,17 +114,15 @@ export async function POST(request) {
       }
       
       // Create new access
-      await prisma.babyAccess.create({
-        data: {
-          userId: targetUser.id,
-          babyId: baby.id,
-          role
-        }
+      await db.insert(babyAccess).values({
+        user_id: targetUser.id,
+        baby_id: baby.id,
+        role
       });
 
       return NextResponse.json({
         success: true,
-        message: `Shared ${baby.babyName} with ${email} as ${role.toLowerCase()}`,
+        message: `Shared ${baby.baby_name} with ${email} as ${role.toLowerCase()}`,
         data: {
           email: targetUser.email,
           name: targetUser.name,
@@ -171,9 +162,7 @@ export async function GET(request) {
     }
 
     // Find current user
-    const currentUser = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
+    const currentUser = await db.select().from(users).where(eq(users.email, session.user.email)).get();
 
     if (!currentUser) {
       return NextResponse.json({
@@ -183,29 +172,7 @@ export async function GET(request) {
     }
 
     // Find baby and verify ownership
-    const baby = await prisma.baby.findUnique({
-      where: { id: parseInt(babyId) },
-      include: {
-        owner: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        babyAccess: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
-            }
-          }
-        }
-      }
-    });
+    const baby = await db.select().from(babies).where(eq(babies.id, parseInt(babyId))).get();
 
     if (!baby) {
       return NextResponse.json({
@@ -215,18 +182,36 @@ export async function GET(request) {
     }
 
     // Check if current user is owner
-    if (baby.ownerId !== currentUser.id) {
+    if (baby.owner_id !== currentUser.id) {
       return NextResponse.json({
         success: false,
         error: 'Only baby owners can view shared users',
       }, { status: 403 });
     }
 
+    // Get baby owner
+    const owner = await db.select({
+      id: users.id,
+      name: users.name,
+      email: users.email
+    }).from(users).where(eq(users.id, baby.owner_id)).get();
+    
+    // Get baby access records with user details
+    const babyAccessWithUsers = await db.select({
+      id: babyAccess.id,
+      role: babyAccess.role,
+      user_id: babyAccess.user_id,
+      userName: users.name,
+      userEmail: users.email
+    }).from(babyAccess)
+      .innerJoin(users, eq(babyAccess.user_id, users.id))
+      .where(eq(babyAccess.baby_id, baby.id));
+
     // Format shared users
-    const sharedUsers = baby.babyAccess.map(access => ({
-      id: access.user.id,
-      name: access.user.name,
-      email: access.user.email,
+    const sharedUsers = babyAccessWithUsers.map(access => ({
+      id: access.user_id,
+      name: access.userName,
+      email: access.userEmail,
       role: access.role,
       accessId: access.id
     }));
@@ -236,8 +221,8 @@ export async function GET(request) {
       data: {
         baby: {
           id: baby.id,
-          babyName: baby.babyName,
-          owner: baby.owner
+          babyName: baby.baby_name,
+          owner: owner
         },
         sharedUsers
       }

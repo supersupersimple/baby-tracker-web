@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authConfig } from '../../../lib/auth.js';
-import { prisma } from '../../../lib/prisma.js';
+import { db } from '../../../lib/database.js';
+import { users, babies, activities } from '../../../lib/schema.js';
+import { eq, and, inArray } from 'drizzle-orm';
 import JSZip from 'jszip';
 import { ulid } from 'ulid';
 
@@ -113,9 +115,7 @@ export async function POST(request) {
     }
 
     // Find current user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
+    const user = await db.select().from(users).where(eq(users.email, session.user.email)).get();
 
     if (!user) {
       return NextResponse.json({
@@ -125,12 +125,20 @@ export async function POST(request) {
     }
 
     // Verify baby ownership - only owners can import data
-    const baby = await prisma.baby.findUnique({
-      where: { id: parseInt(babyId) },
-      include: {
-        owner: true
+    const baby = await db.select({
+      id: babies.id,
+      baby_name: babies.baby_name,
+      owner_id: babies.owner_id,
+      owner: {
+        id: users.id,
+        name: users.name,
+        email: users.email
       }
-    });
+    })
+    .from(babies)
+    .leftJoin(users, eq(babies.owner_id, users.id))
+    .where(eq(babies.id, parseInt(babyId)))
+    .get();
 
     if (!baby) {
       return NextResponse.json({
@@ -139,7 +147,7 @@ export async function POST(request) {
       }, { status: 404 });
     }
 
-    if (baby.ownerId !== user.id) {
+    if (baby.owner_id !== user.id) {
       return NextResponse.json({
         success: false,
         error: 'Only baby owners can import data. You must be the owner of this baby to import activities.',
@@ -198,7 +206,7 @@ export async function POST(request) {
       try {
         // Prepare activity data with field mapping and normalization
         const activityData = {
-          babyId: parseInt(babyId), // Use the specified baby ID
+          baby_id: parseInt(babyId), // Use the specified baby ID
           recorder: user.id, // Use the authenticated user ID
           ulid: ulid(), // Generate ULID for sync compatibility
           status: 'active', // Mark as active (not deleted)
@@ -248,23 +256,28 @@ export async function POST(request) {
     console.log('🔍 Checking for duplicates...');
     
     // Get ALL existing activities for this baby (more efficient than complex OR queries)
-    const existingActivities = await prisma.activity.findMany({
-      where: {
-        babyId: parseInt(babyId),
-        status: 'active' // Only check active activities for duplicates
-      },
-      select: {
-        id: true,
-        ulid: true,
-        type: true,
-        subtype: true,
-        fromDate: true,
-        amount: true,
-        unit: true,
-        category: true,
-        details: true
-      }
-    });
+    const existingActivitiesRaw = await db.select({
+      id: activities.id,
+      ulid: activities.ulid,
+      type: activities.type,
+      subtype: activities.subtype,
+      fromDate: activities.fromDate,
+      amount: activities.amount,
+      unit: activities.unit,
+      category: activities.category,
+      details: activities.details
+    })
+    .from(activities)
+    .where(and(
+      eq(activities.baby_id, parseInt(babyId)),
+      eq(activities.status, 'active')
+    ));
+
+    // Convert Unix timestamps back to Date objects for consistency with existing code
+    const existingActivities = existingActivitiesRaw.map(activity => ({
+      ...activity,
+      fromDate: new Date(activity.from_date * 1000)
+    }));
 
     // Helper function to create content hash for comprehensive duplicate detection
     const createContentHash = (activity) => {
@@ -404,9 +417,14 @@ export async function POST(request) {
       }, null, 2));
       
       try {
-        const testResult = await prisma.activity.create({
-          data: testActivity
-        });
+        // Convert date to Unix timestamp for Drizzle
+        const testActivityForDrizzle = {
+          ...testActivity,
+          fromDate: Math.floor(new Date(testActivity.fromDate).getTime() / 1000),
+          toDate: testActivity.toDate ? Math.floor(new Date(testActivity.toDate).getTime() / 1000) : null
+        };
+        
+        const testResult = await db.insert(activities).values(testActivityForDrizzle).returning().get();
         console.log('✅ Test activity created successfully:', testResult.id);
         
         // If successful, proceed with batch insert
@@ -417,12 +435,17 @@ export async function POST(request) {
           console.log(`📝 Inserting chunk ${Math.floor(i / INSERT_CHUNK_SIZE) + 1}/${Math.ceil(activitiesToInsert.length / INSERT_CHUNK_SIZE)} (${chunk.length} activities)...`);
           
           try {
-            const result = await prisma.activity.createMany({
-              data: chunk
-            });
+            // Convert dates to Unix timestamps for Drizzle
+            const chunkForDrizzle = chunk.map(activity => ({
+              ...activity,
+              fromDate: Math.floor(new Date(activity.fromDate).getTime() / 1000),
+              toDate: activity.toDate ? Math.floor(new Date(activity.toDate).getTime() / 1000) : null
+            }));
             
-            totalInserted += result.count;
-            console.log(`✅ Chunk inserted: ${result.count} activities`);
+            const result = await db.insert(activities).values(chunkForDrizzle);
+            
+            totalInserted += chunkForDrizzle.length;
+            console.log(`✅ Chunk inserted: ${chunkForDrizzle.length} activities`);
             
           } catch (batchError) {
             console.error('❌ Batch insert failed for chunk:', batchError.message);

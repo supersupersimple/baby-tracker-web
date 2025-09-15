@@ -1,16 +1,18 @@
-/*
-  Warnings:
+-- Combined migration for Turso database
+-- Creates all tables needed for the baby tracker application
 
-  - You are about to drop the column `user_id` on the `babies` table. All the data in the column will be lost.
-  - Added the required column `owner_id` to the `babies` table without a default value. This is not possible if the table is not empty.
+-- CreateTable: users
+CREATE TABLE "users" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "email" TEXT NOT NULL,
+    "name" TEXT,
+    "image" TEXT,
+    "emailVerified" DATETIME,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
 
-*/
--- AlterTable
-ALTER TABLE "users" ADD COLUMN "emailVerified" DATETIME;
-ALTER TABLE "users" ADD COLUMN "image" TEXT;
-ALTER TABLE "users" ADD COLUMN "name" TEXT;
-
--- CreateTable
+-- CreateTable: accounts (NextAuth.js)
 CREATE TABLE "accounts" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "user_id" INTEGER NOT NULL,
@@ -27,7 +29,7 @@ CREATE TABLE "accounts" (
     CONSTRAINT "accounts_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- CreateTable
+-- CreateTable: sessions (NextAuth.js)
 CREATE TABLE "sessions" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "session_token" TEXT NOT NULL,
@@ -36,14 +38,30 @@ CREATE TABLE "sessions" (
     CONSTRAINT "sessions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- CreateTable
+-- CreateTable: verification_tokens (NextAuth.js)
 CREATE TABLE "verification_tokens" (
     "identifier" TEXT NOT NULL,
     "token" TEXT NOT NULL,
     "expires" DATETIME NOT NULL
 );
 
--- CreateTable
+-- CreateTable: babies
+CREATE TABLE "babies" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "owner_id" INTEGER NOT NULL,
+    "baby_name" TEXT NOT NULL,
+    "gender" TEXT NOT NULL,
+    "birthday" DATETIME NOT NULL,
+    "description" TEXT,
+    "avatar" TEXT,
+    "isPublic" BOOLEAN NOT NULL DEFAULT false,
+    "inviteCode" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "babies_owner_id_fkey" FOREIGN KEY ("owner_id") REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable: baby_access
 CREATE TABLE "baby_access" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "baby_id" INTEGER NOT NULL,
@@ -59,41 +77,33 @@ CREATE TABLE "baby_access" (
     CONSTRAINT "baby_access_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- RedefineTables
-PRAGMA defer_foreign_keys=ON;
-PRAGMA foreign_keys=OFF;
-CREATE TABLE "new_babies" (
+-- CreateTable: activities
+CREATE TABLE "activities" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    "owner_id" INTEGER NOT NULL,
-    "baby_name" TEXT NOT NULL,
-    "gender" TEXT NOT NULL,
-    "birthday" DATETIME NOT NULL,
-    "description" TEXT,
-    "avatar" TEXT,
-    "isPublic" BOOLEAN NOT NULL DEFAULT false,
-    "inviteCode" TEXT,
+    "ulid" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'active',
+    "baby_id" INTEGER NOT NULL,
+    "recorder" INTEGER NOT NULL,
+    "type" TEXT NOT NULL,
+    "subtype" TEXT,
+    "from_date" DATETIME NOT NULL,
+    "to_date" DATETIME,
+    "unit" TEXT,
+    "amount" REAL,
+    "category" TEXT,
+    "details" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "babies_owner_id_fkey" FOREIGN KEY ("owner_id") REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT "activities_baby_id_fkey" FOREIGN KEY ("baby_id") REFERENCES "babies" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "activities_recorder_fkey" FOREIGN KEY ("recorder") REFERENCES "users" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
-INSERT INTO "new_babies" ("baby_name", "birthday", "createdAt", "gender", "id", "updatedAt") SELECT "baby_name", "birthday", "createdAt", "gender", "id", "updatedAt" FROM "babies";
-DROP TABLE "babies";
-ALTER TABLE "new_babies" RENAME TO "babies";
-CREATE UNIQUE INDEX "babies_inviteCode_key" ON "babies"("inviteCode");
-PRAGMA foreign_keys=ON;
-PRAGMA defer_foreign_keys=OFF;
 
--- CreateIndex
+-- Create indexes
+CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 CREATE UNIQUE INDEX "accounts_provider_provider_account_id_key" ON "accounts"("provider", "provider_account_id");
-
--- CreateIndex
 CREATE UNIQUE INDEX "sessions_session_token_key" ON "sessions"("session_token");
-
--- CreateIndex
 CREATE UNIQUE INDEX "verification_tokens_token_key" ON "verification_tokens"("token");
-
--- CreateIndex
 CREATE UNIQUE INDEX "verification_tokens_identifier_token_key" ON "verification_tokens"("identifier", "token");
-
--- CreateIndex
+CREATE UNIQUE INDEX "babies_inviteCode_key" ON "babies"("inviteCode");
 CREATE UNIQUE INDEX "baby_access_baby_id_user_id_key" ON "baby_access"("baby_id", "user_id");
+CREATE UNIQUE INDEX "activities_baby_id_ulid_key" ON "activities"("baby_id", "ulid");

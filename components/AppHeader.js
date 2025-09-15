@@ -91,7 +91,6 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
       const cachedBabies = localStorage.getItem('baby-tracker-cached-babies');
       if (cachedBabies) {
         const parsedBabies = JSON.parse(cachedBabies);
-        console.log('🚀 Loading cached babies for fast startup:', parsedBabies.length, 'babies');
         setBabies(parsedBabies);
         
         // Auto-select first baby if none selected
@@ -107,9 +106,6 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
 
   const fetchUserBabies = async (silent = false) => {
     try {
-      if (!silent) {
-        console.log('🔄 Fetching fresh babies from server...');
-      }
       const response = await fetch('/api/user/babies');
       const result = await response.json();
       if (result.success) {
@@ -118,13 +114,12 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
         // Cache the babies for next startup
         localStorage.setItem('baby-tracker-cached-babies', JSON.stringify(result.data));
         
-        // Auto-select first baby if none selected
-        if (result.data.length > 0 && !selectedBaby) {
-          onBabyChange(result.data[0]);
-        }
-        
-        if (!silent) {
-          console.log('✅ Fresh babies loaded from server:', result.data.length, 'babies');
+        // Always auto-select first baby when babies are loaded from server
+        // This ensures babies get selected regardless of the closure state
+        if (result.data.length > 0) {
+          setTimeout(() => {
+            onBabyChange(result.data[0]);
+          }, 50); // Small delay to ensure state updates properly
         }
       }
     } catch (error) {
@@ -857,6 +852,42 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
 
                         {/* Settings & Account */}
                         <div className="border-t border-gray-100 mt-2 pt-2">
+                          <div className="px-3 py-1">
+                            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Navigation</h4>
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              setShowMenu(false);
+                              window.location.href = '/';
+                            }}
+                            className="flex items-center w-full px-5 py-4 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                          >
+                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+                              <span className="text-blue-600">🏠</span>
+                            </div>
+                            <div className="text-left">
+                              <div className="font-medium text-base">Home</div>
+                              <div className="text-sm text-gray-500">Activity tracker</div>
+                            </div>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setShowMenu(false);
+                              window.location.href = '/charts';
+                            }}
+                            className="flex items-center w-full px-5 py-4 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors"
+                          >
+                            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-4">
+                              <span className="text-purple-600">📊</span>
+                            </div>
+                            <div className="text-left">
+                              <div className="font-medium text-base">Charts</div>
+                              <div className="text-sm text-gray-500">Daily activity insights</div>
+                            </div>
+                          </button>
+
                           <button
                             onClick={openSettingsDialog}
                             className="flex items-center w-full px-5 py-4 text-sm text-gray-700 hover:bg-gray-50 transition-colors"

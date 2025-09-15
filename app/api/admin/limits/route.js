@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authConfig } from '../../../../lib/auth.js';
-import { prisma } from '../../../../lib/prisma.js';
+import { db } from '../../../../lib/database.js';
+import { users, babies, babyAccess, activities } from '../../../../lib/schema.js';
+import { eq, gte, lt, sql, desc } from 'drizzle-orm';
 import { getCurrentLimits } from '../../../../lib/config.js';
 
 // Admin endpoint to check current limits and usage
@@ -28,45 +30,54 @@ export async function GET(request) {
     }
 
     // Get current usage statistics
+    const today = new Date();
+    const startOfDay = Math.floor(new Date(today.setHours(0, 0, 0, 0)).getTime() / 1000);
+    const endOfDay = Math.floor(new Date(today.setHours(24, 0, 0, 0)).getTime() / 1000);
+    
     const [
-      totalUsers,
-      totalBabies,
-      totalBabyAccess,
-      totalActivities,
-      activitiesToday
+      totalUsersResult,
+      totalBabiesResult,
+      totalBabyAccessResult,
+      totalActivitiesResult,
+      activitiesTodayResult
     ] = await Promise.all([
-      prisma.user.count(),
-      prisma.baby.count(),
-      prisma.babyAccess.count(),
-      prisma.activity.count(),
-      prisma.activity.count({
-        where: {
-          fromDate: {
-            gte: new Date(new Date().setHours(0, 0, 0, 0)),
-            lt: new Date(new Date().setHours(24, 0, 0, 0)),
-          }
-        }
-      })
+      db.select({ count: sql`count(*)`.as('count') }).from(users).get(),
+      db.select({ count: sql`count(*)`.as('count') }).from(babies).get(),
+      db.select({ count: sql`count(*)`.as('count') }).from(babyAccess).get(),
+      db.select({ count: sql`count(*)`.as('count') }).from(activities).get(),
+      db.select({ count: sql`count(*)`.as('count') })
+        .from(activities)
+        .where(gte(activities.from_date, startOfDay))
+        .get()
     ]);
+    
+    const totalUsers = totalUsersResult.count;
+    const totalBabies = totalBabiesResult.count;
+    const totalBabyAccess = totalBabyAccessResult.count;
+    const totalActivities = totalActivitiesResult.count;
+    const activitiesToday = activitiesTodayResult.count;
 
     // Get top babies by activity count
-    const topBabies = await prisma.baby.findMany({
-      select: {
-        id: true,
-        babyName: true,
-        _count: {
-          select: {
-            activities: true
-          }
-        }
-      },
-      orderBy: {
-        activities: {
-          _count: 'desc'
-        }
-      },
-      take: 5
-    });
+    const topBabiesResult = await db
+      .select({
+        id: babies.id,
+        baby_name: babies.baby_name,
+        activityCount: sql`count(${activities.id})`.as('activityCount')
+      })
+      .from(babies)
+      .leftJoin(activities, eq(babies.id, activities.baby_id))
+      .groupBy(babies.id, babies.baby_name)
+      .orderBy(desc(sql`count(${activities.id})`))  
+      .limit(5)
+      .all();
+    
+    const topBabies = topBabiesResult.map(baby => ({
+      id: baby.id,
+      baby_name: baby.baby_name,
+      _count: {
+        activities: parseInt(baby.activityCount) || 0
+      }
+    }));
 
     // Get limits and storage estimates
     const limits = getCurrentLimits();
@@ -106,7 +117,7 @@ export async function GET(request) {
         },
         topBabies: topBabies.map(baby => ({
           id: baby.id,
-          name: baby.babyName,
+          name: baby.baby_name,
           activityCount: baby._count.activities
         })),
         storageEstimate: limits.storageEstimate

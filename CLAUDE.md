@@ -6,7 +6,7 @@ This is a secure baby tracking web application built with Next.js, designed to h
 
 **Type**: Full-stack web application  
 **Framework**: Next.js 15+ with App Router  
-**Database**: turso(sqlite) with Prisma ORM  
+**Database**: Turso (LibSQL) with Drizzle ORM  
 **Authentication**: NextAuth.js with Google OAuth  
 **Styling**: Tailwind CSS + Radix UI components  
 **Deployment**: Vercel-optimized
@@ -22,12 +22,12 @@ This is a secure baby tracking web application built with Next.js, designed to h
 
 ## Architecture
 
-### Database Schema (Prisma)
-- `User` - OAuth users with Google authentication
-- `Baby` - Baby profiles with owner relationships
-- `Activity` - Timestamped activities (feeding, sleeping, etc.)
-- `BabyAccess` - Permission system for sharing babies
-- Standard NextAuth tables (Account, Session, VerificationToken)
+### Database Schema (Drizzle)
+- `users` - OAuth users with Google authentication
+- `babies` - Baby profiles with owner relationships
+- `activities` - Timestamped activities (feeding, sleeping, etc.)
+- `babyAccess` - Permission system for sharing babies
+- Standard NextAuth tables (accounts, sessions, verificationTokens)
 
 ### API Structure
 - `/api/auth/*` - NextAuth.js authentication
@@ -52,11 +52,9 @@ npm run build           # Build for production
 npm run lint            # ESLint checks
 
 # Database
-npx prisma generate     # Generate Prisma client
-npx prisma db push      # Push schema changes
-npx prisma studio       # Database GUI
+npm run db:generate     # Generate Drizzle migrations
+npm run db:push         # Push schema changes to Turso
 npm run db:seed         # Seed sample data
-npm run db:reset        # Reset and reseed
 
 # Testing
 npm run build && npm start  # Test production build
@@ -68,7 +66,8 @@ Required environment variables:
 - `NEXTAUTH_SECRET` - NextAuth.js secret
 - `NEXTAUTH_URL` - Full app URL
 - `GOOGLE_CLIENT_ID` & `GOOGLE_CLIENT_SECRET` - OAuth credentials
-- `DATABASE_URL` - Database connection string
+- `TURSO_DATABASE_URL` - Turso database connection string
+- `TURSO_AUTH_TOKEN` - Turso authentication token
 - `ADMIN_EMAILS` - Comma-separated admin email addresses
 
 ## Security Features
@@ -95,13 +94,14 @@ components/             # React components
 
 lib/                    # Utilities and services
 ├── auth.js            # NextAuth configuration
-├── db.js              # Database connection
+├── database.js        # Drizzle database connection
+├── schema.js          # Drizzle database schema
 ├── sync-service.js    # Offline sync logic
 └── *.js              # Other utilities
 
-prisma/                # Database
-├── schema.prisma      # Database schema
-└── migrations/        # Migration files
+scripts/               # Database scripts
+├── seed.js           # Database seeding script
+└── *.js             # Other utilities
 
 docs/                  # Documentation
 └── *.md              # Setup and API docs
@@ -110,9 +110,9 @@ docs/                  # Documentation
 ## Deployment
 
 Optimized for Vercel deployment with:
-- Automatic Prisma client generation
-- Database migration on build
-- Environment variable configuration
+- Automatic Drizzle client generation
+- Database schema push on build
+- Turso environment variable configuration
 - Edge-friendly middleware
 
 ## Admin Features

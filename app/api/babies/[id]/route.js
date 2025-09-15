@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authConfig } from '../../../../lib/auth.js';
-import { prisma } from '../../../../lib/prisma.js';
+import { db } from '../../../../lib/database.js';
+import { users, babies, activities, babyAccess } from '../../../../lib/schema.js';
+import { eq, and } from 'drizzle-orm';
 
 export async function PUT(request, { params }) {
   try {
@@ -35,9 +37,7 @@ export async function PUT(request, { params }) {
     }
 
     // Find current user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
+    const user = await db.select().from(users).where(eq(users.email, session.user.email)).get();
 
     if (!user) {
       return NextResponse.json({
@@ -47,18 +47,20 @@ export async function PUT(request, { params }) {
     }
 
     // Check if baby exists and verify ownership
-    const baby = await prisma.baby.findUnique({
-      where: { id: babyId },
-      include: {
-        owner: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
+    const baby = await db.select({
+      id: babies.id,
+      baby_name: babies.baby_name,
+      owner_id: babies.owner_id,
+      owner: {
+        id: users.id,
+        name: users.name,
+        email: users.email
       }
-    });
+    })
+    .from(babies)
+    .leftJoin(users, eq(babies.owner_id, users.id))
+    .where(eq(babies.id, babyId))
+    .get();
 
     if (!baby) {
       return NextResponse.json({
@@ -68,7 +70,7 @@ export async function PUT(request, { params }) {
     }
 
     // Check if current user is the owner (only owners can edit baby details)
-    if (baby.ownerId !== user.id) {
+    if (baby.owner_id !== user.id) {
       return NextResponse.json({
         success: false,
         error: 'Only baby owners can edit baby details',
@@ -76,32 +78,42 @@ export async function PUT(request, { params }) {
     }
 
     // Update the baby
-    const updatedBaby = await prisma.baby.update({
-      where: { id: babyId },
-      data: {
+    await db.update(babies)
+      .set({
         babyName,
         gender,
-        birthday: new Date(birthday),
+        birthday: Math.floor(new Date(birthday).getTime() / 1000),
         description: description || '',
-      },
-      include: {
-        owner: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
+      })
+      .where(eq(babies.id, babyId));
+      
+    // Fetch the updated baby with owner info
+    const updatedBaby = await db.select({
+      id: babies.id,
+      baby_name: babies.baby_name,
+      gender: babies.gender,
+      birthday: babies.birthday,
+      description: babies.description,
+      avatar: babies.avatar,
+      inviteCode: babies.inviteCode,
+      owner: {
+        id: users.id,
+        name: users.name,
+        email: users.email
       }
-    });
+    })
+    .from(babies)
+    .leftJoin(users, eq(babies.owner_id, users.id))
+    .where(eq(babies.id, babyId))
+    .get();
 
     return NextResponse.json({
       success: true,
       data: {
         id: updatedBaby.id,
-        babyName: updatedBaby.babyName,
+        babyName: updatedBaby.baby_name,
         gender: updatedBaby.gender,
-        birthday: updatedBaby.birthday,
+        birthday: new Date(updatedBaby.birthday * 1000),
         description: updatedBaby.description,
         avatar: updatedBaby.avatar,
         isOwner: true,
@@ -142,9 +154,7 @@ export async function DELETE(request, { params }) {
     }
 
     // Find current user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
+    const user = await db.select().from(users).where(eq(users.email, session.user.email)).get();
 
     if (!user) {
       return NextResponse.json({
@@ -154,24 +164,36 @@ export async function DELETE(request, { params }) {
     }
 
     // Check if baby exists and verify ownership with detailed logging
-    const baby = await prisma.baby.findUnique({
-      where: { id: babyId },
-      include: {
-        owner: {
-          select: {
-            id: true,
-            email: true,
-            name: true
-          }
-        },
-        _count: {
-          select: {
-            activities: true,
-            babyAccess: true
-          }
-        }
+    const baby = await db.select({
+      id: babies.id,
+      baby_name: babies.baby_name,
+      owner_id: babies.owner_id,
+      owner: {
+        id: users.id,
+        email: users.email,
+        name: users.name
       }
-    });
+    })
+    .from(babies)
+    .leftJoin(users, eq(babies.owner_id, users.id))
+    .where(eq(babies.id, babyId))
+    .get();
+
+    if (baby) {
+      // Get counts for activities and access records
+      const activitiesCount = await db.select({ count: activities.id })
+        .from(activities)
+        .where(eq(activities.baby_id, babyId));
+      
+      const accessCount = await db.select({ count: babyAccess.id })
+        .from(babyAccess)
+        .where(eq(babyAccess.baby_id, babyId));
+
+      baby._count = {
+        activities: activitiesCount.length,
+        babyAccess: accessCount.length
+      };
+    }
 
     if (!baby) {
       console.log(`Delete attempt failed: Baby ${babyId} not found`);
@@ -182,7 +204,7 @@ export async function DELETE(request, { params }) {
     }
 
     // Check if current user is the owner (only owners can delete)
-    if (baby.ownerId !== user.id) {
+    if (baby.owner_id !== user.id) {
       console.log(`Delete attempt denied: User ${user.email} (ID: ${user.id}) tried to delete baby ${baby.babyName} (ID: ${babyId}) owned by ${baby.owner.email} (ID: ${baby.ownerId})`);
       return NextResponse.json({
         success: false,
@@ -193,21 +215,15 @@ export async function DELETE(request, { params }) {
     console.log(`Delete authorized: User ${user.email} (owner) deleting baby ${baby.babyName} with ${baby._count.activities} activities and ${baby._count.babyAccess} access records`);
 
     // Delete all related records in proper order
-    await prisma.$transaction(async (tx) => {
+    await db.transaction(async (tx) => {
       // Delete all activities for this baby
-      await tx.activity.deleteMany({
-        where: { babyId: babyId }
-      });
+      await tx.delete(activities).where(eq(activities.baby_id, babyId));
 
       // Delete all access records (shares) for this baby
-      await tx.babyAccess.deleteMany({
-        where: { babyId: babyId }
-      });
+      await tx.delete(babyAccess).where(eq(babyAccess.baby_id, babyId));
 
       // Finally delete the baby
-      await tx.baby.delete({
-        where: { id: babyId }
-      });
+      await tx.delete(babies).where(eq(babies.id, babyId));
     });
 
     return NextResponse.json({

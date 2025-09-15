@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authConfig } from '../../../../lib/auth.js';
-import { prisma } from '../../../../lib/prisma.js';
+import { db } from '../../../../lib/database.js';
+import { users, babies, babyAccess } from '../../../../lib/schema.js';
+import { eq, or } from 'drizzle-orm';
 
 export async function GET(request) {
   try {
@@ -15,9 +17,7 @@ export async function GET(request) {
     }
 
     // Find user by email
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
+    const user = await db.select().from(users).where(eq(users.email, session.user.email)).get();
 
     if (!user) {
       return NextResponse.json({
@@ -27,50 +27,58 @@ export async function GET(request) {
     }
 
     // Get babies where user is owner or has access
-    const babies = await prisma.baby.findMany({
-      where: {
-        OR: [
-          { ownerId: user.id },
-          {
-            babyAccess: {
-              some: {
-                userId: user.id
-              }
-            }
-          }
-        ]
-      },
-      include: {
+    const babiesQuery = await db
+      .select({
+        baby: babies,
         owner: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
+          id: users.id,
+          name: users.name,
+          email: users.email
         },
-        babyAccess: {
-          where: {
-            userId: user.id
-          },
-          select: {
-            role: true
-          }
-        }
+        access: babyAccess
+      })
+      .from(babies)
+      .leftJoin(users, eq(babies.owner_id, users.id))
+      .leftJoin(babyAccess, eq(babies.id, babyAccess.baby_id))
+      .where(
+        or(
+          eq(babies.owner_id, user.id),
+          eq(babyAccess.user_id, user.id)
+        )
+      )
+      .all();
+
+    // Group results by baby
+    const babiesMap = new Map();
+    babiesQuery.forEach(row => {
+      const babyId = row.baby.id;
+      if (!babiesMap.has(babyId)) {
+        babiesMap.set(babyId, {
+          ...row.baby,
+          owner: row.owner,
+          babyAccess: []
+        });
+      }
+      
+      if (row.access && row.access.user_id === user.id) {
+        babiesMap.get(babyId).babyAccess.push(row.access);
       }
     });
+    
+    const babiesArray = Array.from(babiesMap.values());
 
     // Format response with access info
-    const formattedBabies = babies.map(baby => ({
+    const formattedBabies = babiesArray.map(baby => ({
       id: baby.id,
-      babyName: baby.babyName,
+      babyName: baby.baby_name,
       gender: baby.gender,
-      birthday: baby.birthday,
+      birthday: new Date(baby.birthday * 1000), // Convert unix timestamp to Date
       description: baby.description,
       avatar: baby.avatar,
-      isOwner: baby.ownerId === user.id,
-      role: baby.ownerId === user.id ? 'ADMIN' : baby.babyAccess[0]?.role || 'VIEWER',
+      isOwner: baby.owner_id === user.id,
+      role: baby.owner_id === user.id ? 'ADMIN' : baby.babyAccess[0]?.role || 'VIEWER',
       owner: baby.owner,
-      inviteCode: baby.ownerId === user.id ? baby.inviteCode : null
+      inviteCode: baby.owner_id === user.id ? baby.inviteCode : null
     }));
     
     return NextResponse.json({

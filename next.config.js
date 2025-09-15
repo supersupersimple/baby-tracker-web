@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   // Use serverExternalPackages to prevent bundling libsql packages on client-side
-  serverExternalPackages: ['@libsql/client', '@prisma/adapter-libsql', 'libsql'],
+  serverExternalPackages: ['@libsql/client', 'libsql'],
   
   // Security: Block test files in production
   async redirects() {

@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(npm run lint)",
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm install:*)",
+      "Bash(node:*)",
+      "WebFetch(domain:docs.turso.tech)",
+      "Bash(npx prisma generate:*)",
+      "Bash(npx prisma:*)",
+      "Bash(/home/bobo/.turso/turso db list)",
+      "Bash(/home/bobo/.turso/turso db shell baby-tracker --command \".tables\")",
+      "Bash(/home/bobo/.turso/turso db shell baby-tracker \".tables\")",
+      "Bash(/home/bobo/.turso/turso:*)",
+      "Bash(pkill:*)",
+      "Bash(echo:*)",
+      "Bash(source .env)",
+      "Bash(curl:*)",
+      "Bash(gnome-screenshot:*)",
+      "Read(//tmp/**)",
+      "Bash(flatpak run:*)",
+      "Bash(timeout:*)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright-extension__browser_navigate",
+      "mcp__playwright-extension__browser_snapshot",
+      "mcp__playwright-extension__browser_take_screenshot",
+      "Bash(npm ls:*)",
+      "Bash(npm update:*)",
+      "Bash(find:*)",
+      "mcp__playwright-extension__browser_wait_for",
+      "mcp__playwright-extension__browser_click",
+      "mcp__playwright-extension__browser_evaluate"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,29 +1,27 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authConfig } from '../../../lib/auth.js';
-import { prisma } from '../../../lib/prisma.js';
+import { db } from '../../../lib/database.js';
+import { users, babies, activities, babyAccess } from '../../../lib/schema.js';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { canCreateActivityToday, canCreateActivity, LIMITS } from '../../../lib/config.js';
 
 // Helper function to check user's permission for a baby
 async function getUserBabyPermission(userId, babyId) {
-  const baby = await prisma.baby.findUnique({
-    where: { id: parseInt(babyId) },
-    include: {
-      babyAccess: {
-        where: { userId },
-        select: { role: true }
-      }
-    }
-  });
+  const baby = await db.select().from(babies).where(eq(babies.id, parseInt(babyId))).get();
 
   if (!baby) return null;
   
   // Owner has ADMIN permission
-  if (baby.ownerId === userId) return 'ADMIN';
+  if (baby.owner_id === userId) return 'ADMIN';
   
   // Check shared access
-  if (baby.babyAccess.length > 0) {
-    return baby.babyAccess[0].role;
+  const access = await db.select().from(babyAccess)
+    .where(and(eq(babyAccess.baby_id, parseInt(babyId)), eq(babyAccess.user_id, userId)))
+    .get();
+  
+  if (access) {
+    return access.role;
   }
   
   return null; // No permission
@@ -55,9 +53,7 @@ export async function GET(request) {
     }
 
     // Find current user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
+    const user = await db.select().from(users).where(eq(users.email, session.user.email)).get();
 
     if (!user) {
       return NextResponse.json({
@@ -82,45 +78,69 @@ export async function GET(request) {
     };
 
     // Get total count for pagination info
-    const totalCount = await prisma.activity.count({
-      where: {
-        ...whereClause,
-        status: 'active' // Only count active activities
-      }
-    });
+    let countQuery = db.select({ count: sql`count(*)`.as('count') }).from(activities)
+      .where(and(eq(activities.baby_id, parseInt(babyId)), eq(activities.status, 'active')));
+    
+    if (type) {
+      countQuery = countQuery.where(and(eq(activities.baby_id, parseInt(babyId)), eq(activities.status, 'active'), eq(activities.type, type)));
+    }
+    
+    const countResult = await countQuery.get();
+    const totalCount = countResult.count;
 
-    const activities = await prisma.activity.findMany({
-      where: {
-        ...whereClause,
-        status: 'active' // Only get active activities
+    // Build query with joins
+    let activitiesQuery = db.select({
+      activity: activities,
+      user: {
+        id: users.id,
+        name: users.name,
+        email: users.email
       },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        baby: {
-          select: {
-            id: true,
-            babyName: true,
-            gender: true
-          }
-        }
-      },
-      orderBy: { fromDate: 'desc' },
-      skip: offset,
-      take: limit
-    });
+      baby: {
+        id: babies.id,
+        babyName: babies.baby_name,
+        gender: babies.gender
+      }
+    })
+    .from(activities)
+    .leftJoin(users, eq(activities.recorder, users.id))
+    .leftJoin(babies, eq(activities.baby_id, babies.id))
+    .where(and(eq(activities.baby_id, parseInt(babyId)), eq(activities.status, 'active')))
+    .orderBy(desc(activities.from_date))
+    .limit(limit)
+    .offset(offset);
+    
+    if (type) {
+      activitiesQuery = activitiesQuery.where(
+        and(
+          eq(activities.baby_id, parseInt(babyId)), 
+          eq(activities.status, 'active'),
+          eq(activities.type, type)
+        )
+      );
+    }
+    
+    const activitiesResult = await activitiesQuery.all();
+    
+    
+    // Transform the results to match the expected structure
+    const activitiesData = activitiesResult.map(row => ({
+      ...row.activity,
+      // Convert timestamps to Date objects (all timestamps are ISO8601 strings)
+      fromDate: new Date(row.activity.from_date),
+      toDate: row.activity.to_date ? new Date(row.activity.to_date) : null,
+      createdAt: new Date(row.activity.createdAt),
+      updatedAt: new Date(row.activity.updatedAt),
+      user: row.user,
+      baby: row.baby
+    }));
 
     const totalPages = Math.ceil(totalCount / limit);
     const hasMore = page < totalPages;
     
     return NextResponse.json({
       success: true,
-      data: activities,
+      data: activitiesData,
       pagination: {
         page,
         limit,
@@ -151,7 +171,7 @@ export async function POST(request) {
 
     const body = await request.json();
     const { babyId, type, subtype, startTime, endTime, fromDate, toDate, unit, amount, category, details, clientId } = body;
-    
+
     // Support both legacy (startTime/endTime) and new (fromDate/toDate) field names
     const activityFromDate = fromDate || startTime;
     const activityToDate = toDate || endTime;
@@ -164,9 +184,7 @@ export async function POST(request) {
     }
 
     // Find current user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
+    const user = await db.select().from(users).where(eq(users.email, session.user.email)).get();
 
     if (!user) {
       return NextResponse.json({
@@ -186,7 +204,7 @@ export async function POST(request) {
     }
 
     // Check activity limits
-    const canCreateToday = await canCreateActivityToday(prisma, parseInt(babyId));
+    const canCreateToday = await canCreateActivityToday(db, parseInt(babyId));
     if (!canCreateToday) {
       return NextResponse.json({
         success: false,
@@ -194,7 +212,7 @@ export async function POST(request) {
       }, { status: 403 });
     }
 
-    const canCreateTotal = await canCreateActivity(prisma, parseInt(babyId));
+    const canCreateTotal = await canCreateActivity(db, parseInt(babyId));
     if (!canCreateTotal) {
       return NextResponse.json({
         success: false,
@@ -202,38 +220,60 @@ export async function POST(request) {
       }, { status: 403 });
     }
     
-    const activity = await prisma.activity.create({
-      data: {
-        babyId: parseInt(babyId),
-        recorder: user.id, // Use actual logged-in user
-        ulid: clientId || null, // Store client ULID for sync
-        status: 'active', // Default to active
-        type,
-        subtype: subtype || null,
-        fromDate: new Date(activityFromDate),
-        toDate: activityToDate ? new Date(activityToDate) : null,
-        unit: unit || null,
-        amount: amount ? parseFloat(amount) : null,
-        category: category || null,
-        details: details || null,
+    // Create the activity
+    const now = new Date().toISOString();
+
+
+    const newActivityData = {
+      baby_id: parseInt(babyId),
+      recorder: user.id, // Use actual logged-in user
+      ulid: clientId || null, // Store client ULID for sync
+      status: 'active', // Default to active
+      type,
+      subtype: subtype || null,
+      from_date: new Date(activityFromDate).toISOString(), // Store as ISO8601 string
+      to_date: activityToDate ? new Date(activityToDate).toISOString() : null,
+      unit: unit || null,
+      amount: amount ? parseFloat(amount) : null,
+      category: category || null,
+      details: details || null,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const insertResult = await db.insert(activities).values(newActivityData).returning();
+    const createdActivity = insertResult[0];
+    
+    // Get the activity with user and baby info
+    const activityWithRelations = await db.select({
+      activity: activities,
+      user: {
+        id: users.id,
+        name: users.name,
+        email: users.email
       },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        baby: {
-          select: {
-            id: true,
-            babyName: true,
-            gender: true
-          }
-        }
+      baby: {
+        id: babies.id,
+        babyName: babies.baby_name,
+        gender: babies.gender
       }
-    });
+    })
+    .from(activities)
+    .leftJoin(users, eq(activities.recorder, users.id))
+    .leftJoin(babies, eq(activities.baby_id, babies.id))
+    .where(eq(activities.id, createdActivity.id))
+    .get();
+    
+    const activity = {
+      ...activityWithRelations.activity,
+      // Convert ISO8601 strings to Date objects for response
+      fromDate: new Date(activityWithRelations.activity.from_date),
+      toDate: activityWithRelations.activity.to_date ? new Date(activityWithRelations.activity.to_date) : null,
+      createdAt: new Date(activityWithRelations.activity.createdAt),
+      updatedAt: new Date(activityWithRelations.activity.updatedAt),
+      user: activityWithRelations.user,
+      baby: activityWithRelations.baby
+    };
     
     return NextResponse.json({
       success: true,
