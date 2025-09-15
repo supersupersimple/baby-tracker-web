@@ -195,7 +195,6 @@ export async function POST(request) {
 
     // Check permission - must be EDITOR or ADMIN to create activities
     const permission = await getUserBabyPermission(user.id, babyId);
-    console.log(`User ${user.email} has permission: ${permission} for baby ${babyId}`);
     if (!permission || permission === 'VIEWER') {
       return NextResponse.json({
         success: false,

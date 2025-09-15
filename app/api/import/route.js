@@ -9,11 +9,9 @@ import { ulid } from 'ulid';
 
 export async function POST(request) {
   try {
-    console.log('🔍 Import API called');
     const session = await getServerSession(authConfig);
     
     if (!session?.user?.email) {
-      console.log('❌ No authentication');
       return NextResponse.json({
         success: false,
         error: 'Authentication required',
@@ -23,10 +21,8 @@ export async function POST(request) {
     // Get babyId from query parameters (URL) instead of request body
     const { searchParams } = new URL(request.url);
     const babyId = searchParams.get('babyId');
-    console.log('📋 BabyId from query:', babyId);
     
     if (!babyId) {
-      console.log('❌ No babyId provided');
       return NextResponse.json({
         success: false,
         error: 'Baby ID is required as query parameter (?babyId=X)',
@@ -35,31 +31,26 @@ export async function POST(request) {
 
     // Check if the request contains binary data (for .abt files) or JSON data
     const contentType = request.headers.get('content-type');
-    console.log('📄 Content-Type:', contentType);
     let data;
 
     if (contentType && contentType.includes('multipart/form-data')) {
-      console.log('📁 Processing file upload');
       // Handle file upload (.abt files)
       const formData = await request.formData();
       const file = formData.get('file');
       
       if (!file) {
-        console.log('❌ No file in FormData');
         return NextResponse.json({
           success: false,
           error: 'No file provided',
         }, { status: 400 });
       }
       
-      console.log('📎 File received:', file.name, 'Size:', file.size, 'Type:', file.type);
 
       // Get file buffer
       const fileBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(fileBuffer);
 
       try {
-        console.log('📦 Attempting to unzip file...');
         // Try to unzip the file (assuming .abt format)
         const zip = new JSZip();
         const zipContents = await zip.loadAsync(buffer);
@@ -71,31 +62,22 @@ export async function POST(request) {
         }
         
         if (!dataFile) {
-          console.log('❌ Neither data.json nor baby.json found in zip archive');
-          console.log('📋 Available files in zip:', Object.keys(zipContents.files));
           return NextResponse.json({
             success: false,
             error: 'Invalid .abt file: data.json or baby.json not found in archive',
           }, { status: 400 });
         }
         
-        console.log('✅ Found data file in zip:', dataFile.name);
 
         // Extract and parse JSON data
         const jsonContent = await dataFile.async('text');
-        console.log('📄 JSON content length:', jsonContent.length);
         data = JSON.parse(jsonContent);
-        console.log('✅ Successfully parsed ZIP/JSON data');
       } catch (zipError) {
-        console.log('⚠️ ZIP parsing failed:', zipError.message);
         // If unzip fails, try to parse as direct JSON (for backward compatibility)
         try {
           const textContent = buffer.toString('utf-8');
-          console.log('📄 Trying direct JSON parse, content length:', textContent.length);
           data = JSON.parse(textContent);
-          console.log('✅ Successfully parsed direct JSON data');
         } catch (jsonError) {
-          console.log('❌ JSON parsing also failed:', jsonError.message);
           return NextResponse.json({
             success: false,
             error: 'Invalid file format. Expected .abt (zipped JSON) or .json file',
@@ -155,14 +137,8 @@ export async function POST(request) {
     }
     
     // Validate the import data structure
-    console.log('🔍 Validating data structure. Data keys:', Object.keys(data));
-    console.log('📊 Data.records type:', typeof data.records, 'Is array:', Array.isArray(data.records));
-    if (data.records) {
-      console.log('📊 Records count:', data.records.length);
-    }
     
     if (!data.records || !Array.isArray(data.records)) {
-      console.log('❌ Invalid data structure - missing or invalid records array');
       return NextResponse.json({
         success: false,
         error: 'Invalid data format: records array is required'
@@ -190,14 +166,7 @@ export async function POST(request) {
     const errors = [];
     const validActivities = [];
 
-    console.log('📊 Processing', data.records.length, 'records...');
 
-    // Log some sample dates to understand the data
-    const sampleDates = data.records.slice(0, 5).map(r => r.fromDate);
-    console.log('📅 Sample dates from import:', sampleDates);
-    
-    const latestDates = data.records.slice(-5).map(r => r.fromDate);
-    console.log('📅 Latest dates from import:', latestDates);
 
     // First pass: Process and validate all records
     for (let i = 0; i < data.records.length; i++) {
@@ -250,10 +219,8 @@ export async function POST(request) {
       }
     }
 
-    console.log('✅ Processed', validActivities.length, 'valid activities');
 
     // Second pass: Check for existing activities efficiently (avoid large OR queries)
-    console.log('🔍 Checking for duplicates...');
     
     // Get ALL existing activities for this baby (more efficient than complex OR queries)
     const existingActivitiesRaw = await db.select({
@@ -343,7 +310,6 @@ export async function POST(request) {
       );
     };
 
-    console.log('📊 Found', exactMatchSet.size, 'existing activities in database');
 
     // Also check for duplicates within the import data itself
     const importExactSet = new Set();
@@ -403,63 +369,32 @@ export async function POST(request) {
       activitiesToInsert.push(activity);
     });
 
-    console.log('📝 Inserting', activitiesToInsert.length, 'new activities...');
 
-    // Third pass: Batch insert all new activities (debug with smaller test first)
+    // Third pass: Batch insert all new activities
     let totalInserted = 0;
     if (activitiesToInsert.length > 0) {
-      // Try just one activity first to see the exact error
-      console.log('🧪 Testing with one activity first...');
-      const testActivity = activitiesToInsert[0];
-      console.log('🧪 Test activity data:', JSON.stringify({
-        ...testActivity,
-        ulid: testActivity.ulid ? `${testActivity.ulid.substring(0, 8)}...` : null // Show partial ULID for privacy
-      }, null, 2));
-      
-      try {
-        // Convert date to Unix timestamp for Drizzle
-        const testActivityForDrizzle = {
-          ...testActivity,
-          fromDate: Math.floor(new Date(testActivity.fromDate).getTime() / 1000),
-          toDate: testActivity.toDate ? Math.floor(new Date(testActivity.toDate).getTime() / 1000) : null
-        };
-        
-        const testResult = await db.insert(activities).values(testActivityForDrizzle).returning().get();
-        console.log('✅ Test activity created successfully:', testResult.id);
-        
-        // If successful, proceed with batch insert
-        const INSERT_CHUNK_SIZE = 50; // Much smaller chunks for debugging
-        
-        for (let i = 0; i < activitiesToInsert.length; i += INSERT_CHUNK_SIZE) {
-          const chunk = activitiesToInsert.slice(i, i + INSERT_CHUNK_SIZE);
-          console.log(`📝 Inserting chunk ${Math.floor(i / INSERT_CHUNK_SIZE) + 1}/${Math.ceil(activitiesToInsert.length / INSERT_CHUNK_SIZE)} (${chunk.length} activities)...`);
-          
-          try {
-            // Convert dates to Unix timestamps for Drizzle
-            const chunkForDrizzle = chunk.map(activity => ({
-              ...activity,
-              fromDate: Math.floor(new Date(activity.fromDate).getTime() / 1000),
-              toDate: activity.toDate ? Math.floor(new Date(activity.toDate).getTime() / 1000) : null
-            }));
-            
-            const result = await db.insert(activities).values(chunkForDrizzle);
-            
-            totalInserted += chunkForDrizzle.length;
-            console.log(`✅ Chunk inserted: ${chunkForDrizzle.length} activities`);
-            
-          } catch (batchError) {
-            console.error('❌ Batch insert failed for chunk:', batchError.message);
-            errors.push(`Batch insert failed for chunk ${Math.floor(i / INSERT_CHUNK_SIZE) + 1}: ${batchError.message}`);
-          }
+      const INSERT_CHUNK_SIZE = 500; // Production chunk size
+
+      for (let i = 0; i < activitiesToInsert.length; i += INSERT_CHUNK_SIZE) {
+        const chunk = activitiesToInsert.slice(i, i + INSERT_CHUNK_SIZE);
+
+        try {
+          // Convert dates to Unix timestamps for Drizzle
+          const chunkForDrizzle = chunk.map(activity => ({
+            ...activity,
+            fromDate: Math.floor(new Date(activity.fromDate).getTime() / 1000),
+            toDate: activity.toDate ? Math.floor(new Date(activity.toDate).getTime() / 1000) : null
+          }));
+
+          await db.insert(activities).values(chunkForDrizzle);
+          totalInserted += chunkForDrizzle.length;
+
+        } catch (batchError) {
+          console.error('Database error during batch insert:', batchError);
+          errors.push(`Batch insert failed for chunk ${Math.floor(i / INSERT_CHUNK_SIZE) + 1}: ${batchError.message}`);
         }
-        
-      } catch (testError) {
-        console.error('❌ Test activity failed:', testError.message);
-        console.error('❌ Full test error:', testError);
-        errors.push(`Single activity test failed: ${testError.message}`);
       }
       
-      console.log('✅ Total batch insert completed:', totalInserted, 'activities created');
       
       // For response purposes, create a representative array
       importedActivities.push(...activitiesToInsert.slice(0, 10)); // Just show first 10 for response

@@ -119,7 +119,7 @@ export async function GET(request) {
 
     // Convert birthday to "YYYY-MM-DD" format if it exists
     const formatBirthday = (dateStr) => {
-      if (!dateStr) return "2022-12-19"; // Default fallback
+      if (!dateStr) return null; // No default date if not provided
       const date = new Date(dateStr);
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');

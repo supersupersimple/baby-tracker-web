@@ -196,7 +196,6 @@ export async function DELETE(request, { params }) {
     }
 
     if (!baby) {
-      console.log(`Delete attempt failed: Baby ${babyId} not found`);
       return NextResponse.json({
         success: false,
         error: 'Baby not found',
@@ -205,14 +204,12 @@ export async function DELETE(request, { params }) {
 
     // Check if current user is the owner (only owners can delete)
     if (baby.owner_id !== user.id) {
-      console.log(`Delete attempt denied: User ${user.email} (ID: ${user.id}) tried to delete baby ${baby.babyName} (ID: ${babyId}) owned by ${baby.owner.email} (ID: ${baby.ownerId})`);
       return NextResponse.json({
         success: false,
         error: 'Only baby owners can delete babies. This action has been logged.',
       }, { status: 403 });
     }
 
-    console.log(`Delete authorized: User ${user.email} (owner) deleting baby ${baby.babyName} with ${baby._count.activities} activities and ${baby._count.babyAccess} access records`);
 
     // Delete all related records in proper order
     await db.transaction(async (tx) => {

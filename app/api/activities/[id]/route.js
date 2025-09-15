@@ -137,7 +137,6 @@ export async function PATCH(request, { params }) {
 
     // If not found by server ID, this might be a local ULID that needs to be synced first
     if (!existingActivity) {
-      console.log(`Activity ${id} not found on server - this appears to be a local-only activity that needs syncing`);
       
       // For local activities, we need to create them on the server first
       // Extract the baby ID from the request body or use a default
@@ -250,7 +249,6 @@ export async function PATCH(request, { params }) {
         toDate: completeActivity.toDate ? new Date(completeActivity.toDate) : null
       };
 
-      console.log(`✅ Created new activity ${newActivity.id} on server for local ULID ${id}`);
 
       return NextResponse.json({
         success: true,
