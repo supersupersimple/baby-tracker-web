@@ -21,16 +21,16 @@ const API_CACHE_ROUTES = [
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing service worker v2 - DUPLICATE DETECTION FIX...');
+  // Installing service worker v2
   
   event.waitUntil(
     caches.open(STATIC_CACHE_NAME)
       .then((cache) => {
-        console.log('[SW] Caching static assets');
+        // Caching static assets
         return cache.addAll(STATIC_ASSETS);
       })
       .catch((error) => {
-        console.error('[SW] Failed to cache static assets:', error);
+        // Failed to cache static assets
       })
   );
   
@@ -40,7 +40,7 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating service worker...');
+  // Activating service worker
   
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -50,7 +50,7 @@ self.addEventListener('activate', (event) => {
           if (cacheName !== STATIC_CACHE_NAME && 
               cacheName !== DYNAMIC_CACHE_NAME && 
               cacheName !== CACHE_NAME) {
-            console.log('[SW] Deleting old cache:', cacheName);
+            // Deleting old cache
             return caches.delete(cacheName);
           }
         })
@@ -109,7 +109,7 @@ async function handleApiRequest(request) {
     
     return networkResponse;
   } catch (error) {
-    console.log('[SW] Network request failed, trying cache:', url.pathname);
+    // Network request failed, trying cache
     
     // Network failed, try cache
     const cachedResponse = await caches.match(request);
@@ -159,7 +159,7 @@ async function handleStaticAssets(request) {
     
     // Skip caching for JavaScript files to ensure we always get latest version
     if (url.pathname.includes('.js') || url.pathname.includes('webpack')) {
-      console.log('[SW] Skipping cache for JS file:', url.pathname);
+      // Skipping cache for JS file
       return fetch(request);
     }
     
@@ -178,7 +178,7 @@ async function handleStaticAssets(request) {
     
     return networkResponse;
   } catch (error) {
-    console.log('[SW] Static asset request failed:', request.url);
+    // Static asset request failed
     // For critical assets, we might want to return a placeholder
     throw error;
   }
@@ -198,7 +198,7 @@ async function handlePageRequest(request) {
     
     return networkResponse;
   } catch (error) {
-    console.log('[SW] Page request failed, trying cache:', request.url);
+    // Page request failed, trying cache
     
     // Try cache
     const cachedResponse = await caches.match(request);
@@ -267,7 +267,7 @@ async function handleOtherAssets(request) {
     
     return networkResponse;
   } catch (error) {
-    console.log('[SW] Asset request failed:', request.url);
+    // Asset request failed
     throw error;
   }
 }
@@ -275,7 +275,7 @@ async function handleOtherAssets(request) {
 // Background Sync for offline activities
 self.addEventListener('sync', (event) => {
   if (event.tag === 'baby-tracker-sync') {
-    console.log('[SW] Background sync triggered');
+    // Background sync triggered
     event.waitUntil(syncOfflineActivities());
   }
 });
@@ -316,7 +316,7 @@ self.addEventListener('message', (event) => {
 
 // Push notifications (for future use)
 self.addEventListener('push', (event) => {
-  console.log('[SW] Push message received');
+  // Push message received
   
   // For now, just log - can be extended for feeding reminders etc.
   const options = {
