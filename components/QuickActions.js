@@ -22,7 +22,7 @@ const quickActions = [
   },
   {
     id: "feeding-meal",
-    type: "feeding", 
+    type: "feeding",
     subtype: "MEAL",
     icon: "🥄",
     label: "Meal",
@@ -30,31 +30,148 @@ const quickActions = [
     borderColor: "border-blue-200 hover:border-blue-300"
   },
   {
-    id: "sleeping",
+    id: "feeding-left-breast",
+    type: "feeding",
+    subtype: "LEFT_BREAST",
+    icon: "🤱",
+    label: "Left Breast",
+    color: "bg-blue-50 hover:bg-blue-100 text-blue-700",
+    borderColor: "border-blue-200 hover:border-blue-300"
+  },
+  {
+    id: "feeding-right-breast",
+    type: "feeding",
+    subtype: "RIGHT_BREAST",
+    icon: "🤱",
+    label: "Right Breast",
+    color: "bg-blue-50 hover:bg-blue-100 text-blue-700",
+    borderColor: "border-blue-200 hover:border-blue-300"
+  },
+  // Sleeping subtypes
+  {
+    id: "sleeping-sleep",
     type: "sleeping",
     subtype: "SLEEP",
-    icon: "😴", 
+    icon: "😴",
     label: "Sleep",
     color: "bg-purple-50 hover:bg-purple-100 text-purple-700",
-    borderColor: "border-purple-200 hover:border-purple-300"
+    borderColor: "border-purple-200 hover:border-purple-300",
+    directAction: true // No dialog, direct action
   },
+  // Diapering subtypes
   {
     id: "diapering-pee",
     type: "diapering",
     subtype: "PEE",
     icon: "💧",
     label: "Pee",
-    color: "bg-green-50 hover:bg-green-100 text-green-700", 
-    borderColor: "border-green-200 hover:border-green-300"
+    color: "bg-green-50 hover:bg-green-100 text-green-700",
+    borderColor: "border-green-200 hover:border-green-300",
+    directAction: true // No dialog, direct action
   },
   {
     id: "diapering-poo",
     type: "diapering",
-    subtype: "POO", 
+    subtype: "POO",
     icon: "💩",
     label: "Poo",
     color: "bg-green-50 hover:bg-green-100 text-green-700",
-    borderColor: "border-green-200 hover:border-green-300"
+    borderColor: "border-green-200 hover:border-green-300",
+    directAction: true // No dialog, direct action
+  },
+  {
+    id: "diapering-peepoo",
+    type: "diapering",
+    subtype: "PEEPOO",
+    icon: "🌊",
+    label: "Pee & Poo",
+    color: "bg-green-50 hover:bg-green-100 text-green-700",
+    borderColor: "border-green-200 hover:border-green-300",
+    directAction: true // No dialog, direct action
+  },
+  // Growth subtypes
+  {
+    id: "growth-weight",
+    type: "growth",
+    subtype: "GROWTH_WEIGHT",
+    icon: "⚖️",
+    label: "Weight",
+    color: "bg-yellow-50 hover:bg-yellow-100 text-yellow-700",
+    borderColor: "border-yellow-200 hover:border-yellow-300"
+  },
+  {
+    id: "growth-height",
+    type: "growth",
+    subtype: "GROWTH_HEIGHT",
+    icon: "📏",
+    label: "Height",
+    color: "bg-yellow-50 hover:bg-yellow-100 text-yellow-700",
+    borderColor: "border-yellow-200 hover:border-yellow-300"
+  },
+  {
+    id: "growth-head",
+    type: "growth",
+    subtype: "GROWTH_HEAD",
+    icon: "🧠",
+    label: "Head",
+    color: "bg-yellow-50 hover:bg-yellow-100 text-yellow-700",
+    borderColor: "border-yellow-200 hover:border-yellow-300"
+  },
+  // Health subtypes
+  {
+    id: "health-medications",
+    type: "health",
+    subtype: "HEALTH_MEDICATIONS",
+    icon: "💊",
+    label: "Medication",
+    color: "bg-red-50 hover:bg-red-100 text-red-700",
+    borderColor: "border-red-200 hover:border-red-300"
+  },
+  {
+    id: "health-temperature",
+    type: "health",
+    subtype: "HEALTH_TEMPERATURE",
+    icon: "🌡️",
+    label: "Temperature",
+    color: "bg-red-50 hover:bg-red-100 text-red-700",
+    borderColor: "border-red-200 hover:border-red-300"
+  },
+  {
+    id: "health-vaccinations",
+    type: "health",
+    subtype: "HEALTH_VACCINATIONS",
+    icon: "💉",
+    label: "Vaccination",
+    color: "bg-red-50 hover:bg-red-100 text-red-700",
+    borderColor: "border-red-200 hover:border-red-300"
+  },
+  // Leisure subtypes
+  {
+    id: "leisure-tummy",
+    type: "leisure",
+    subtype: "LEISURE_TUMMY",
+    icon: "🥰",
+    label: "Tummy Time",
+    color: "bg-orange-50 hover:bg-orange-100 text-orange-700",
+    borderColor: "border-orange-200 hover:border-orange-300"
+  },
+  {
+    id: "leisure-bath",
+    type: "leisure",
+    subtype: "LEISURE_BATH",
+    icon: "🛁",
+    label: "Bath",
+    color: "bg-orange-50 hover:bg-orange-100 text-orange-700",
+    borderColor: "border-orange-200 hover:border-orange-300"
+  },
+  {
+    id: "leisure-walk",
+    type: "leisure",
+    subtype: "LEISURE_WALK",
+    icon: "🚶",
+    label: "Walk",
+    color: "bg-orange-50 hover:bg-orange-100 text-orange-700",
+    borderColor: "border-orange-200 hover:border-orange-300"
   }
 ];
 
@@ -112,6 +229,7 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
   const [saving, setSaving] = useState(false);
   const [floatingMessage, setFloatingMessage] = useState("");
   const [showAllActionsDropdown, setShowAllActionsDropdown] = useState(false);
+  const [dialogType, setDialogType] = useState("quick"); // "quick" or "all"
 
   // Handle PWA shortcuts from URL parameters
   useEffect(() => {
@@ -128,7 +246,7 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
         if (action) {
           // Delay to ensure component is fully loaded
           setTimeout(() => {
-            handleActionClick(action);
+            handleActionClick(action, "quick");
           }, 100);
           
           // Clean up URL without reloading
@@ -138,7 +256,7 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
     }
   }, [selectedBaby]); // Re-run when selectedBaby changes
 
-  const handleActionClick = async (action) => {
+  const handleActionClick = async (action, sourceType = "quick") => {
     // Check if user has permission to add activities
     if (!selectedBaby) {
       setFloatingMessage("❌ Please select a baby first");
@@ -152,36 +270,42 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
       return;
     }
 
-    // Handle sleep directly without dialog
-    if (action.id === "sleeping" || (action.type === "sleeping")) {
-      await handleDirectSleepActivity();
+    // Handle direct actions (sleep, pee, poo, peepoo) - no dialog
+    if (action.directAction ||
+        action.id === "sleeping-sleep" ||
+        action.id === "diapering-pee" ||
+        action.id === "diapering-poo" ||
+        action.id === "diapering-peepoo" ||
+        (action.id === "sleeping" || action.type === "sleeping")) {
+      await handleDirectActivity(action);
       return;
     }
-    
+
     setSelectedAction(action);
-    
+    setDialogType(sourceType); // Set whether this is from quick actions or all actions
+
     // Get the action type and subtype
     const actionType = action.type || action.id; // support both new and old format
     const preselectedSubtype = action.subtype || getDefaultSubtype(actionType);
-    
+
     // Get last bottle feeding amount if it's a feeding action
     let lastAmount = "";
     let lastUnit = "ML";
-    
+
     // 🔥 NEW: Get last feeding amount from local storage first, then API
     if (actionType === "feeding") {
       try {
         // First try to get from local storage (faster)
         const localActivities = getAllLocalActivities();
         const localFeedings = localActivities
-          .filter(activity => 
+          .filter(activity =>
             activity.babyId === selectedBaby.id &&
             activity.type === 'FEEDING' &&
-            activity.amount && 
+            activity.amount &&
             activity.amount > 0
           )
           .sort((a, b) => new Date(b.fromDate) - new Date(a.fromDate));
-        
+
         if (localFeedings.length > 0) {
           const lastFeeding = localFeedings[0];
           lastAmount = lastFeeding.amount.toString();
@@ -199,12 +323,12 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
           const result = await response.json();
           if (result.success && result.data.length > 0) {
             const feedingsWithAmount = result.data
-              .filter(activity => 
-                activity.amount && 
+              .filter(activity =>
+                activity.amount &&
                 activity.amount > 0
               )
               .sort((a, b) => new Date(b.fromDate) - new Date(a.fromDate));
-            
+
             if (feedingsWithAmount.length > 0) {
               const lastFeeding = feedingsWithAmount[0];
               lastAmount = lastFeeding.amount.toString();
@@ -222,7 +346,7 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
         console.log("Could not fetch last feeding amount:", error);
       }
     }
-    
+
     setFormData({
       time: new Date().toISOString().slice(0, 16), // Default to current time
       endTime: "",
@@ -235,15 +359,19 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
     setIsDialogOpen(true);
   };
 
-  // 🔥 NEW: Local-first sleep activity handler
-  const handleDirectSleepActivity = async () => {
+  // 🔥 NEW: Local-first direct activity handler (sleep, pee, poo, peepoo)
+  const handleDirectActivity = async (action) => {
     setSaving(true);
 
     try {
+      // Get activity type and subtype from action
+      const activityType = action.type?.toUpperCase() || "SLEEPING";
+      const activitySubtype = action.subtype || "SLEEP";
+
       const activityData = {
         babyId: selectedBaby.id,
-        type: "SLEEPING",
-        subtype: "SLEEP",
+        type: activityType,
+        subtype: activitySubtype,
         fromDate: new Date().toISOString(),
         toDate: null,
         unit: null,
@@ -260,12 +388,19 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
 
       // 🚀 LOCAL-FIRST: Store immediately to local storage
       const localActivity = storeActivityLocally(activityData);
-      
+
       // Immediate UI feedback - user sees instant response
-      setFloatingMessage("✅ Sleep activity started!");
+      const activityLabels = {
+        "SLEEP": "Sleep",
+        "PEE": "Pee",
+        "POO": "Poo",
+        "PEEPOO": "Pee & Poo"
+      };
+      const label = activityLabels[activitySubtype] || action.label;
+      setFloatingMessage(`✅ ${label} activity added!`);
       setTimeout(() => setFloatingMessage(""), 2000);
       if (onActivityAdded) onActivityAdded();
-      
+
       // 🔄 BACKGROUND SYNC: Schedule background synchronization
       if (isOnline()) {
         // Import sync service dynamically to avoid circular dependencies
@@ -278,10 +413,10 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
           // Activity is still saved locally, sync will happen later
         }
       }
-      
+
     } catch (error) {
-      console.error('Error starting sleep activity:', error);
-      setFloatingMessage("❌ Failed to save sleep activity");
+      console.error('Error adding direct activity:', error);
+      setFloatingMessage("❌ Failed to save activity");
       setTimeout(() => setFloatingMessage(""), 3000);
     } finally {
       setSaving(false);
@@ -475,43 +610,46 @@ export function QuickActions({ onActivityAdded, selectedBaby, quickActionsSettin
         {/* Type-specific inputs */}
         {actionType === "feeding" && (
           <>
-            <div>
-              <Label htmlFor="subtype">Feeding Type</Label>
-              <div className="grid grid-cols-2 gap-2 mt-1">
-                <Button
-                  type="button"
-                  variant={formData.subtype === "BOTTLE" ? "default" : "outline"}
-                  onClick={() => handleInputChange("subtype", "BOTTLE")}
-                  className="text-xs"
-                >
-                  🍼 Bottle
-                </Button>
-                <Button
-                  type="button"
-                  variant={formData.subtype === "MEAL" ? "default" : "outline"}
-                  onClick={() => handleInputChange("subtype", "MEAL")}
-                  className="text-xs"
-                >
-                  🥄 Meal
-                </Button>
-                <Button
-                  type="button"
-                  variant={formData.subtype === "LEFT_BREAST" ? "default" : "outline"}
-                  onClick={() => handleInputChange("subtype", "LEFT_BREAST")}
-                  className="text-xs"
-                >
-                  🤱 Left
-                </Button>
-                <Button
-                  type="button"
-                  variant={formData.subtype === "RIGHT_BREAST" ? "default" : "outline"}
-                  onClick={() => handleInputChange("subtype", "RIGHT_BREAST")}
-                  className="text-xs"
-                >
-                  🤱 Right
-                </Button>
+            {/* Show subtype selection only for "All Actions" dialog */}
+            {dialogType === "all" && (
+              <div>
+                <Label htmlFor="subtype">Feeding Type</Label>
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  <Button
+                    type="button"
+                    variant={formData.subtype === "BOTTLE" ? "default" : "outline"}
+                    onClick={() => handleInputChange("subtype", "BOTTLE")}
+                    className="text-xs"
+                  >
+                    🍼 Bottle
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={formData.subtype === "MEAL" ? "default" : "outline"}
+                    onClick={() => handleInputChange("subtype", "MEAL")}
+                    className="text-xs"
+                  >
+                    🥄 Meal
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={formData.subtype === "LEFT_BREAST" ? "default" : "outline"}
+                    onClick={() => handleInputChange("subtype", "LEFT_BREAST")}
+                    className="text-xs"
+                  >
+                    🤱 Left
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={formData.subtype === "RIGHT_BREAST" ? "default" : "outline"}
+                    onClick={() => handleInputChange("subtype", "RIGHT_BREAST")}
+                    className="text-xs"
+                  >
+                    🤱 Right
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Bottle-specific inputs */}
             {formData.subtype === "BOTTLE" && (
@@ -602,32 +740,35 @@ required={false}
 
         {actionType === "diapering" && (
           <>
-            <div>
-              <Label htmlFor="subtype">Diaper Type</Label>
-              <div className="grid grid-cols-3 gap-2 mt-1">
-                <Button
-                  type="button"
-                  variant={formData.subtype === "PEE" ? "default" : "outline"}
-                  onClick={() => handleInputChange("subtype", "PEE")}
-                >
-                  💧 Pee
-                </Button>
-                <Button
-                  type="button"
-                  variant={formData.subtype === "POO" ? "default" : "outline"}
-                  onClick={() => handleInputChange("subtype", "POO")}
-                >
-                  💩 Poo
-                </Button>
-                <Button
-                  type="button"
-                  variant={formData.subtype === "PEEPOO" ? "default" : "outline"}
-                  onClick={() => handleInputChange("subtype", "PEEPOO")}
-                >
-                  🌊 Both
-                </Button>
+            {/* Show subtype selection only for "All Actions" dialog */}
+            {dialogType === "all" && (
+              <div>
+                <Label htmlFor="subtype">Diaper Type</Label>
+                <div className="grid grid-cols-3 gap-2 mt-1">
+                  <Button
+                    type="button"
+                    variant={formData.subtype === "PEE" ? "default" : "outline"}
+                    onClick={() => handleInputChange("subtype", "PEE")}
+                  >
+                    💧 Pee
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={formData.subtype === "POO" ? "default" : "outline"}
+                    onClick={() => handleInputChange("subtype", "POO")}
+                  >
+                    💩 Poo
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={formData.subtype === "PEEPOO" ? "default" : "outline"}
+                    onClick={() => handleInputChange("subtype", "PEEPOO")}
+                  >
+                    🌊 Both
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
             <div>
               <Label htmlFor="details">Notes (optional)</Label>
               <Input
@@ -642,35 +783,38 @@ required={false}
 
         {actionType === "growth" && (
           <>
-            <div>
-              <Label htmlFor="subtype">Growth Type</Label>
-              <div className="grid grid-cols-3 gap-2 mt-1">
-                <Button
-                  type="button"
-                  variant={formData.subtype === "GROWTH_WEIGHT" ? "default" : "outline"}
-                  onClick={() => handleInputChange("subtype", "GROWTH_WEIGHT")}
-                  className="text-xs"
-                >
-                  ⚖️ Weight
-                </Button>
-                <Button
-                  type="button"
-                  variant={formData.subtype === "GROWTH_HEIGHT" ? "default" : "outline"}
-                  onClick={() => handleInputChange("subtype", "GROWTH_HEIGHT")}
-                  className="text-xs"
-                >
-                  📏 Height
-                </Button>
-                <Button
-                  type="button"
-                  variant={formData.subtype === "GROWTH_HEAD" ? "default" : "outline"}
-                  onClick={() => handleInputChange("subtype", "GROWTH_HEAD")}
-                  className="text-xs"
-                >
-                  🧠 Head
-                </Button>
+            {/* Show subtype selection only for "All Actions" dialog */}
+            {dialogType === "all" && (
+              <div>
+                <Label htmlFor="subtype">Growth Type</Label>
+                <div className="grid grid-cols-3 gap-2 mt-1">
+                  <Button
+                    type="button"
+                    variant={formData.subtype === "GROWTH_WEIGHT" ? "default" : "outline"}
+                    onClick={() => handleInputChange("subtype", "GROWTH_WEIGHT")}
+                    className="text-xs"
+                  >
+                    ⚖️ Weight
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={formData.subtype === "GROWTH_HEIGHT" ? "default" : "outline"}
+                    onClick={() => handleInputChange("subtype", "GROWTH_HEIGHT")}
+                    className="text-xs"
+                  >
+                    📏 Height
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={formData.subtype === "GROWTH_HEAD" ? "default" : "outline"}
+                    onClick={() => handleInputChange("subtype", "GROWTH_HEAD")}
+                    className="text-xs"
+                  >
+                    🧠 Head
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Weight measurement */}
             {formData.subtype === "GROWTH_WEIGHT" && (
@@ -734,35 +878,38 @@ required={false}
 
         {actionType === "health" && (
           <>
-            <div>
-              <Label htmlFor="subtype">Health Type</Label>
-              <div className="grid grid-cols-3 gap-2 mt-1">
-                <Button
-                  type="button"
-                  variant={formData.subtype === "HEALTH_MEDICATIONS" ? "default" : "outline"}
-                  onClick={() => handleInputChange("subtype", "HEALTH_MEDICATIONS")}
-                  className="text-xs"
-                >
-                  💊 Medication
-                </Button>
-                <Button
-                  type="button"
-                  variant={formData.subtype === "HEALTH_TEMPERATURE" ? "default" : "outline"}
-                  onClick={() => handleInputChange("subtype", "HEALTH_TEMPERATURE")}
-                  className="text-xs"
-                >
-                  🌡️ Temperature
-                </Button>
-                <Button
-                  type="button"
-                  variant={formData.subtype === "HEALTH_VACCINATIONS" ? "default" : "outline"}
-                  onClick={() => handleInputChange("subtype", "HEALTH_VACCINATIONS")}
-                  className="text-xs"
-                >
-                  💉 Vaccination
-                </Button>
+            {/* Show subtype selection only for "All Actions" dialog */}
+            {dialogType === "all" && (
+              <div>
+                <Label htmlFor="subtype">Health Type</Label>
+                <div className="grid grid-cols-3 gap-2 mt-1">
+                  <Button
+                    type="button"
+                    variant={formData.subtype === "HEALTH_MEDICATIONS" ? "default" : "outline"}
+                    onClick={() => handleInputChange("subtype", "HEALTH_MEDICATIONS")}
+                    className="text-xs"
+                  >
+                    💊 Medication
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={formData.subtype === "HEALTH_TEMPERATURE" ? "default" : "outline"}
+                    onClick={() => handleInputChange("subtype", "HEALTH_TEMPERATURE")}
+                    className="text-xs"
+                  >
+                    🌡️ Temperature
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={formData.subtype === "HEALTH_VACCINATIONS" ? "default" : "outline"}
+                    onClick={() => handleInputChange("subtype", "HEALTH_VACCINATIONS")}
+                    className="text-xs"
+                  >
+                    💉 Vaccination
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Temperature measurement */}
             {formData.subtype === "HEALTH_TEMPERATURE" && (
@@ -794,35 +941,38 @@ required={false}
 
         {actionType === "leisure" && (
           <>
-            <div>
-              <Label htmlFor="subtype">Leisure Type</Label>
-              <div className="grid grid-cols-3 gap-2 mt-1">
-                <Button
-                  type="button"
-                  variant={formData.subtype === "LEISURE_TUMMY" ? "default" : "outline"}
-                  onClick={() => handleInputChange("subtype", "LEISURE_TUMMY")}
-                  className="text-xs"
-                >
-                  🥰 Tummy Time
-                </Button>
-                <Button
-                  type="button"
-                  variant={formData.subtype === "LEISURE_BATH" ? "default" : "outline"}
-                  onClick={() => handleInputChange("subtype", "LEISURE_BATH")}
-                  className="text-xs"
-                >
-                  🛁 Bath
-                </Button>
-                <Button
-                  type="button"
-                  variant={formData.subtype === "LEISURE_WALK" ? "default" : "outline"}
-                  onClick={() => handleInputChange("subtype", "LEISURE_WALK")}
-                  className="text-xs"
-                >
-                  🚶 Walk
-                </Button>
+            {/* Show subtype selection only for "All Actions" dialog */}
+            {dialogType === "all" && (
+              <div>
+                <Label htmlFor="subtype">Leisure Type</Label>
+                <div className="grid grid-cols-3 gap-2 mt-1">
+                  <Button
+                    type="button"
+                    variant={formData.subtype === "LEISURE_TUMMY" ? "default" : "outline"}
+                    onClick={() => handleInputChange("subtype", "LEISURE_TUMMY")}
+                    className="text-xs"
+                  >
+                    🥰 Tummy Time
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={formData.subtype === "LEISURE_BATH" ? "default" : "outline"}
+                    onClick={() => handleInputChange("subtype", "LEISURE_BATH")}
+                    className="text-xs"
+                  >
+                    🛁 Bath
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={formData.subtype === "LEISURE_WALK" ? "default" : "outline"}
+                    onClick={() => handleInputChange("subtype", "LEISURE_WALK")}
+                    className="text-xs"
+                  >
+                    🚶 Walk
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Note for leisure activities */}
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
@@ -902,11 +1052,11 @@ required={false}
                         <button
                           key={action.id}
                           onClick={() => {
-                            handleActionClick(action);
+                            handleActionClick(action, "all");
                             setShowAllActionsDropdown(false);
                           }}
                           className="flex items-center w-full px-3 py-2 text-sm font-normal text-left text-gray-700 hover:bg-gray-100 transition-colors"
-                          style={{ 
+                          style={{
                             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
                             fontWeight: 'normal',
                             fontStyle: 'normal'
@@ -928,11 +1078,9 @@ required={false}
             <div className="flex gap-2 pb-2 w-max">
               {quickActions
                 .filter(action => {
-                  // For new subtype-based actions, check the action.id (e.g., 'feeding-bottle')
-                  // For old type-based actions, check action.type or action.id
-                  return quickActionsSettings?.[action.id] !== false;
+                  // Check if this specific subtype is enabled in settings
+                  return quickActionsSettings?.[action.id] === true;
                 })
-                .slice(0, 5)
                 .map((action) => (
                   <button
                     key={action.id}

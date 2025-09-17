@@ -17,8 +17,31 @@ export default function Home() {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('quickActionsSettings');
       return saved ? JSON.parse(saved) : {
+        // Feeding subtypes
+        'feeding-bottle': true,
+        'feeding-meal': true,
+        'feeding-left-breast': false,
+        'feeding-right-breast': false,
+        // Sleeping subtypes
+        'sleeping-sleep': true,
+        // Diapering subtypes
+        'diapering-pee': true,
+        'diapering-poo': true,
+        'diapering-peepoo': false,
+        // Growth subtypes
+        'growth-weight': false,
+        'growth-height': false,
+        'growth-head': false,
+        // Health subtypes
+        'health-medications': false,
+        'health-temperature': false,
+        'health-vaccinations': false,
+        // Leisure subtypes
+        'leisure-tummy': false,
+        'leisure-bath': false,
+        'leisure-walk': false,
+        // Keep main types for backward compatibility with "All Actions" dropdown
         feeding: true,
-        sleeping: true,
         diapering: true,
         growth: true,
         health: true,
@@ -26,8 +49,31 @@ export default function Home() {
       };
     }
     return {
+      // Feeding subtypes
+      'feeding-bottle': true,
+      'feeding-meal': true,
+      'feeding-left-breast': false,
+      'feeding-right-breast': false,
+      // Sleeping subtypes
+      'sleeping-sleep': true,
+      // Diapering subtypes
+      'diapering-pee': true,
+      'diapering-poo': true,
+      'diapering-peepoo': false,
+      // Growth subtypes
+      'growth-weight': false,
+      'growth-height': false,
+      'growth-head': false,
+      // Health subtypes
+      'health-medications': false,
+      'health-temperature': false,
+      'health-vaccinations': false,
+      // Leisure subtypes
+      'leisure-tummy': false,
+      'leisure-bath': false,
+      'leisure-walk': false,
+      // Keep main types for backward compatibility with "All Actions" dropdown
       feeding: true,
-      sleeping: true,
       diapering: true,
       growth: true,
       health: true,

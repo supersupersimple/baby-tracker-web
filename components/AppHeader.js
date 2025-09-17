@@ -35,11 +35,29 @@ export function AppHeader({ selectedBaby, onBabyChange, currentPage = "home" }) 
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('quickActionsSettings');
       return saved ? JSON.parse(saved) : {
+        // Feeding subtypes
         'feeding-bottle': true,
         'feeding-meal': true,
-        sleeping: true,
+        'feeding-left-breast': false,
+        'feeding-right-breast': false,
+        // Sleeping subtypes
+        'sleeping-sleep': true,
+        // Diapering subtypes
         'diapering-pee': true,
         'diapering-poo': true,
+        'diapering-peepoo': false,
+        // Growth subtypes
+        'growth-weight': false,
+        'growth-height': false,
+        'growth-head': false,
+        // Health subtypes
+        'health-medications': false,
+        'health-temperature': false,
+        'health-vaccinations': false,
+        // Leisure subtypes
+        'leisure-tummy': false,
+        'leisure-bath': false,
+        'leisure-walk': false,
         // Keep main types for backward compatibility with "All Actions" dropdown
         feeding: true,
         diapering: true,
@@ -49,11 +67,29 @@ export function AppHeader({ selectedBaby, onBabyChange, currentPage = "home" }) 
       };
     }
     return {
+      // Feeding subtypes
       'feeding-bottle': true,
       'feeding-meal': true,
-      sleeping: true,
+      'feeding-left-breast': false,
+      'feeding-right-breast': false,
+      // Sleeping subtypes
+      'sleeping-sleep': true,
+      // Diapering subtypes
       'diapering-pee': true,
       'diapering-poo': true,
+      'diapering-peepoo': false,
+      // Growth subtypes
+      'growth-weight': false,
+      'growth-height': false,
+      'growth-head': false,
+      // Health subtypes
+      'health-medications': false,
+      'health-temperature': false,
+      'health-vaccinations': false,
+      // Leisure subtypes
+      'leisure-tummy': false,
+      'leisure-bath': false,
+      'leisure-walk': false,
       // Keep main types for backward compatibility with "All Actions" dropdown
       feeding: true,
       diapering: true,
@@ -1152,125 +1188,271 @@ export function AppHeader({ selectedBaby, onBabyChange, currentPage = "home" }) 
 
       {/* Settings Dialog */}
       <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Settings</DialogTitle>
           </DialogHeader>
-          
-          <div className="space-y-4">
+
+          <div className="space-y-4 max-h-[70vh] overflow-y-auto">
             <div>
               <h3 className="text-sm font-medium text-base text-gray-900 mb-3">Quick Actions</h3>
               <p className="text-sm text-gray-500 mb-4">Choose which quick action buttons to show on the home page:</p>
-              
+
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">🍼</span>
-                    <span className="text-sm">Bottle Feeding</span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={quickActionsSettings['feeding-bottle']}
-                    onChange={(e) => handleQuickActionsSettingsChange('feeding-bottle', e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">🥄</span>
-                    <span className="text-sm">Meal</span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={quickActionsSettings['feeding-meal']}
-                    onChange={(e) => handleQuickActionsSettingsChange('feeding-meal', e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">😴</span>
-                    <span className="text-sm">Sleep</span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={quickActionsSettings.sleeping}
-                    onChange={(e) => handleQuickActionsSettingsChange('sleeping', e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">💧</span>
-                    <span className="text-sm">Pee</span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={quickActionsSettings['diapering-pee']}
-                    onChange={(e) => handleQuickActionsSettingsChange('diapering-pee', e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">💩</span>
-                    <span className="text-sm">Poo</span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={quickActionsSettings['diapering-poo']}
-                    onChange={(e) => handleQuickActionsSettingsChange('diapering-poo', e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-              
-              <div className="mt-6">
-                <h4 className="text-sm font-medium text-gray-900 mb-2">All Actions Menu</h4>
-                <p className="text-xs text-gray-500 mb-3">These appear in the &ldquo;All Actions&rdquo; dropdown:</p>
-                
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">📏</span>
-                      <span className="text-xs">Growth</span>
+                {/* Feeding Section */}
+                <div>
+                  <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Feeding</h4>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🍼</span>
+                        <span className="text-sm">Bottle</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={quickActionsSettings['feeding-bottle']}
+                        onChange={(e) => handleQuickActionsSettingsChange('feeding-bottle', e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={quickActionsSettings.growth}
-                      onChange={(e) => handleQuickActionsSettingsChange('growth', e.target.checked)}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 scale-90"
-                    />
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">🏥</span>
-                      <span className="text-xs">Health</span>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🥄</span>
+                        <span className="text-sm">Meal</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={quickActionsSettings['feeding-meal']}
+                        onChange={(e) => handleQuickActionsSettingsChange('feeding-meal', e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={quickActionsSettings.health}
-                      onChange={(e) => handleQuickActionsSettingsChange('health', e.target.checked)}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 scale-90"
-                    />
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">🎉</span>
-                      <span className="text-xs">Leisure</span>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🤱</span>
+                        <span className="text-sm">Left Breast</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={quickActionsSettings['feeding-left-breast']}
+                        onChange={(e) => handleQuickActionsSettingsChange('feeding-left-breast', e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={quickActionsSettings.leisure}
-                      onChange={(e) => handleQuickActionsSettingsChange('leisure', e.target.checked)}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 scale-90"
-                    />
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🤱</span>
+                        <span className="text-sm">Right Breast</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={quickActionsSettings['feeding-right-breast']}
+                        onChange={(e) => handleQuickActionsSettingsChange('feeding-right-breast', e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sleeping Section */}
+                <div>
+                  <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Sleeping</h4>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">😴</span>
+                        <span className="text-sm">Sleep</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={quickActionsSettings['sleeping-sleep']}
+                        onChange={(e) => handleQuickActionsSettingsChange('sleeping-sleep', e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Diapering Section */}
+                <div>
+                  <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Diapering</h4>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">💧</span>
+                        <span className="text-sm">Pee</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={quickActionsSettings['diapering-pee']}
+                        onChange={(e) => handleQuickActionsSettingsChange('diapering-pee', e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">💩</span>
+                        <span className="text-sm">Poo</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={quickActionsSettings['diapering-poo']}
+                        onChange={(e) => handleQuickActionsSettingsChange('diapering-poo', e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🌊</span>
+                        <span className="text-sm">Pee & Poo</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={quickActionsSettings['diapering-peepoo']}
+                        onChange={(e) => handleQuickActionsSettingsChange('diapering-peepoo', e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Growth Section */}
+                <div>
+                  <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Growth</h4>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">⚖️</span>
+                        <span className="text-sm">Weight</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={quickActionsSettings['growth-weight']}
+                        onChange={(e) => handleQuickActionsSettingsChange('growth-weight', e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">📏</span>
+                        <span className="text-sm">Height</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={quickActionsSettings['growth-height']}
+                        onChange={(e) => handleQuickActionsSettingsChange('growth-height', e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🧠</span>
+                        <span className="text-sm">Head Circumference</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={quickActionsSettings['growth-head']}
+                        onChange={(e) => handleQuickActionsSettingsChange('growth-head', e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Health Section */}
+                <div>
+                  <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Health</h4>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">💊</span>
+                        <span className="text-sm">Medication</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={quickActionsSettings['health-medications']}
+                        onChange={(e) => handleQuickActionsSettingsChange('health-medications', e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🌡️</span>
+                        <span className="text-sm">Temperature</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={quickActionsSettings['health-temperature']}
+                        onChange={(e) => handleQuickActionsSettingsChange('health-temperature', e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">💉</span>
+                        <span className="text-sm">Vaccination</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={quickActionsSettings['health-vaccinations']}
+                        onChange={(e) => handleQuickActionsSettingsChange('health-vaccinations', e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Leisure Section */}
+                <div>
+                  <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Leisure</h4>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🥰</span>
+                        <span className="text-sm">Tummy Time</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={quickActionsSettings['leisure-tummy']}
+                        onChange={(e) => handleQuickActionsSettingsChange('leisure-tummy', e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🛁</span>
+                        <span className="text-sm">Bath</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={quickActionsSettings['leisure-bath']}
+                        onChange={(e) => handleQuickActionsSettingsChange('leisure-bath', e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🚶</span>
+                        <span className="text-sm">Walk</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={quickActionsSettings['leisure-walk']}
+                        onChange={(e) => handleQuickActionsSettingsChange('leisure-walk', e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
