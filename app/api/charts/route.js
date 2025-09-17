@@ -68,14 +68,15 @@ export async function GET(request) {
       .orderBy(activities.from_date)
       .all();
 
-    // Convert unix timestamps to Date objects for chart utilities
+    // Convert date strings to Date objects for chart utilities
     const activitiesWithDates = activitiesResults.map(activity => ({
       ...activity,
-      fromDate: new Date(activity.from_date * 1000),
-      toDate: activity.to_date ? new Date(activity.to_date * 1000) : null,
-      createdAt: new Date(activity.createdAt), // createdAt is ISO8601 string, not unix timestamp
-      updatedAt: new Date(activity.updatedAt) // updatedAt is ISO8601 string, not unix timestamp
+      fromDate: new Date(activity.from_date), // from_date is ISO8601 string
+      toDate: activity.to_date ? new Date(activity.to_date) : null, // to_date is ISO8601 string
+      createdAt: new Date(activity.createdAt), // createdAt is ISO8601 string
+      updatedAt: new Date(activity.updatedAt) // updatedAt is ISO8601 string
     }));
+
 
     let chartData = []
     let summaryStats = {}

@@ -16,7 +16,7 @@ import { BatchSyncButton } from "@/components/BatchSyncButton";
 import { initSyncService, getSyncService } from "@/lib/sync-service";
 import { EnhancedBabySelector } from "@/components/EnhancedBabySelector";
 
-export function AppHeader({ selectedBaby, onBabyChange }) {
+export function AppHeader({ selectedBaby, onBabyChange, currentPage = "home" }) {
   const { data: session } = useSession();
   const [babies, setBabies] = useState([]);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -635,6 +635,7 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
                 selectedBaby={selectedBaby}
                 onBabyChange={onBabyChange}
                 className="w-full"
+                currentPage={currentPage}
               />
             </div>
 
@@ -853,40 +854,8 @@ export function AppHeader({ selectedBaby, onBabyChange }) {
                         {/* Settings & Account */}
                         <div className="border-t border-gray-100 mt-2 pt-2">
                           <div className="px-3 py-1">
-                            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Navigation</h4>
+                            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Settings & Account</h4>
                           </div>
-
-                          <button
-                            onClick={() => {
-                              setShowMenu(false);
-                              window.location.href = '/';
-                            }}
-                            className="flex items-center w-full px-5 py-4 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                          >
-                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
-                              <span className="text-blue-600">🏠</span>
-                            </div>
-                            <div className="text-left">
-                              <div className="font-medium text-base">Home</div>
-                              <div className="text-sm text-gray-500">Activity tracker</div>
-                            </div>
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              setShowMenu(false);
-                              window.location.href = '/charts';
-                            }}
-                            className="flex items-center w-full px-5 py-4 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors"
-                          >
-                            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-4">
-                              <span className="text-purple-600">📊</span>
-                            </div>
-                            <div className="text-left">
-                              <div className="font-medium text-base">Charts</div>
-                              <div className="text-sm text-gray-500">Daily activity insights</div>
-                            </div>
-                          </button>
 
                           <button
                             onClick={openSettingsDialog}

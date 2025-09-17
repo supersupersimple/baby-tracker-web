@@ -124,6 +124,8 @@ public/test-*.html
 # Local development files
 dev.log
 server.log
+.playwright-mcp/
+.claude/
 
 # Prisma
 # Keep schema.prisma and migrations/ - both are needed for deployment

@@ -8,7 +8,7 @@ import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend } from "recharts";
 import { Baby, Moon, TrendingUp, PlayCircle } from "lucide-react";
 
 const chartTypes = [
@@ -109,12 +109,17 @@ export default function ChartsPage() {
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="dateLabel" />
-              <YAxis />
+              <YAxis
+                allowDecimals={true}
+                tickCount={6}
+                domain={[0, 'dataMax + 0.5']}
+                tickFormatter={(value) => `${value}h`}
+              />
               <ChartTooltip content={<ChartTooltipContent />} />
-              <Line 
-                type="monotone" 
-                dataKey="hours" 
-                stroke={chartConfig.hours.color} 
+              <Line
+                type="monotone"
+                dataKey="hours"
+                stroke={chartConfig.hours.color}
                 strokeWidth={2}
                 dot={{ r: 4 }}
               />
@@ -125,13 +130,21 @@ export default function ChartsPage() {
       case 'diapering':
         return (
           <ChartContainer config={chartConfig} className="h-64">
-            <BarChart data={chartData}>
+            <BarChart
+              data={chartData}
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+            >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="dateLabel" />
-              <YAxis />
+              <YAxis
+                allowDecimals={false}
+                tickCount={4}
+                domain={[0, 'dataMax + 1']}
+              />
               <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="pee" fill={chartConfig.pee.color} />
-              <Bar dataKey="poo" fill={chartConfig.poo.color} />
+              <Legend />
+              <Bar dataKey="pee" fill={chartConfig.pee.color} name="Pee" />
+              <Bar dataKey="poo" fill={chartConfig.poo.color} name="Poo" />
             </BarChart>
           </ChartContainer>
         );
@@ -199,7 +212,7 @@ export default function ChartsPage() {
   if (status === "loading") {
     return (
       <div className="flex flex-col h-full min-h-0">
-        <AppHeader selectedBaby={null} onBabyChange={() => {}} />
+        <AppHeader selectedBaby={null} onBabyChange={() => {}} currentPage="charts" />
         <main className="flex-1 max-w-4xl mx-auto py-3 px-2 sm:px-4 lg:px-6 pb-8 sm:pb-6 flex flex-col overflow-hidden min-w-0">
           <div className="flex items-center justify-center min-h-64">
             <div className="text-center">
@@ -215,7 +228,7 @@ export default function ChartsPage() {
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <AppHeader selectedBaby={selectedBaby} onBabyChange={handleBabyChange} />
+      <AppHeader selectedBaby={selectedBaby} onBabyChange={handleBabyChange} currentPage="charts" />
 
       <main className="flex-1 max-w-4xl mx-auto py-3 px-2 sm:px-4 lg:px-6 pb-8 sm:pb-6 flex flex-col overflow-hidden min-w-0">
         {!session ? (

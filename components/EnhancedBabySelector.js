@@ -8,7 +8,7 @@ import { calculateBabyAge, getBabyAvatar, getBabyAvatarBg } from "@/lib/date-uti
  * Enhanced Baby Selector for Header
  * More prominent display with avatar and age information
  */
-export function EnhancedBabySelector({ babies, selectedBaby, onBabyChange, className = "" }) {
+export function EnhancedBabySelector({ babies, selectedBaby, onBabyChange, className = "", currentPage = "home" }) {
   const [isOpen, setIsOpen] = useState(false);
 
   if (!babies || babies.length === 0) {
@@ -172,12 +172,49 @@ export function EnhancedBabySelector({ babies, selectedBaby, onBabyChange, class
                 ))}
               </div>
               
-              {/* Quick Actions Footer */}
-              <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
-                <p className="text-xs text-gray-600 text-center">
-                  Use the menu to create new babies or manage sharing
-                </p>
-              </div>
+              {/* Baby Actions Footer */}
+              {selectedBaby && (
+                <div className="bg-gray-50 border-t border-gray-100">
+                  {currentPage === "charts" ? (
+                    <button
+                      onClick={() => {
+                        setIsOpen(false);
+                        window.location.href = '/';
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-blue-50 hover:text-blue-700 transition-colors duration-150"
+                    >
+                      <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <span className="text-blue-600">🏠</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-sm text-gray-900">Back to Home</h4>
+                        <p className="text-xs text-gray-600">Return to activity tracking</p>
+                      </div>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setIsOpen(false);
+                        window.location.href = '/charts';
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-blue-50 hover:text-blue-700 transition-colors duration-150"
+                    >
+                      <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <span className="text-purple-600">📊</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-sm text-gray-900">View Charts</h4>
+                        <p className="text-xs text-gray-600">Activity insights for {selectedBaby.babyName}</p>
+                      </div>
+                    </button>
+                  )}
+                  <div className="px-4 py-2">
+                    <p className="text-xs text-gray-500 text-center">
+                      Use the profile menu to manage babies and sharing
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </>
