@@ -127,6 +127,9 @@ server.log
 .playwright-mcp/
 .claude/
 
-# Prisma
+# Drizzle generated files - Keep migration files but ignore meta snapshots
+drizzle/meta/
+
+# Prisma (legacy)
 # Keep schema.prisma and migrations/ - both are needed for deployment
 # Only ignore the generated client and local dev databases

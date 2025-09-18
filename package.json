@@ -2,18 +2,20 @@
   "name": "baby-tracker-web",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "db:seed": "node scripts/seed.js",
-    "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
+    "db:migrate": "dotenv -e .env node scripts/migrate.js",
+    "db:push": "drizzle-kit push",
     "test:mobile": "node test-mobile-layout.js",
     "generate:icons": "node scripts/generate-icons.js",
     "postinstall": "drizzle-kit generate",
-    "vercel-build": "drizzle-kit push && next build"
+    "vercel-build": "npm run db:migrate && next build"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.10.0",
