@@ -5,14 +5,10 @@
  * Applies pending migrations to the database
  */
 
-import { migrate } from 'drizzle-orm/libsql/migrator';
-import { drizzle } from 'drizzle-orm/libsql';
-import { createClient } from '@libsql/client';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const { migrate } = require('drizzle-orm/libsql/migrator');
+const { drizzle } = require('drizzle-orm/libsql');
+const { createClient } = require('@libsql/client');
+const path = require('path');
 
 async function runMigrations() {
   const dbUrl = process.env.TURSO_DATABASE_URL;
@@ -56,8 +52,8 @@ async function runMigrations() {
 }
 
 // Run if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (require.main === module) {
   runMigrations();
 }
 
-export default runMigrations;
+module.exports = runMigrations;

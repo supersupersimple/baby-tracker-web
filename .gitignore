@@ -127,7 +127,7 @@ server.log
 .playwright-mcp/
 .claude/
 
-# Drizzle generated files - Keep migration files but ignore meta snapshots
+# Drizzle generated files - Keep migration SQL files but ignore generated metadata
 drizzle/meta/
 
 # Prisma (legacy)
