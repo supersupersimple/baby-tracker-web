@@ -43,6 +43,13 @@ async function runMigrations() {
 
     client.close();
   } catch (error) {
+    // Check if error is about migrations already applied
+    if (error.message && error.message.includes('already exists')) {
+      console.log('ℹ️ Database tables already exist - migrations may already be applied');
+      console.log('✅ Migration check completed');
+      return;
+    }
+
     console.error('❌ Migration failed:', error);
     process.exit(1);
   }

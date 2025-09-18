@@ -15,7 +15,7 @@
     "test:mobile": "node test-mobile-layout.js",
     "generate:icons": "node scripts/generate-icons.js",
     "postinstall": "drizzle-kit generate",
-    "vercel-build": "npm run db:migrate && next build"
+    "vercel-build": "node scripts/migrate.js && next build"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.10.0",
