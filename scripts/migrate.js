@@ -5,6 +5,7 @@
  * Applies pending migrations to the database
  */
 
+require('dotenv').config();
 const { migrate } = require('drizzle-orm/libsql/migrator');
 const { drizzle } = require('drizzle-orm/libsql');
 const { createClient } = require('@libsql/client');
